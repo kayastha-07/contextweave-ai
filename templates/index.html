@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContextWeave — Behavioral Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── palette ── */
+  --ink:        #020810;
+  --ink2:       #040d1a;
+  --ink3:       #071425;
+  --glass:      rgba(255,255,255,0.026);
+  --glass2:     rgba(255,255,255,0.048);
+  --rim:        rgba(255,255,255,0.06);
+  --rim-hi:     rgba(0,200,255,0.32);
+
+  /* neon */
+  --neo:        #00c8ff;
+  --neo-dim:    rgba(0,200,255,0.08);
+  --neo-glow:   rgba(0,200,255,0.22);
+  --teal:       #00ffe0;
+  --teal-dim:   rgba(0,255,224,0.07);
+  --ember:      #ff6b35;
+  --rose:       #ff3a6e;
+  --gold:       #ffcc44;
+  --jade:       #00e887;
+  --lilac:      #b07efa;
+
+  /* ── text ── */
+  --w:  #ffffff;
+  --t1: #ddeeff;
+  --t2: #7a9ab8;
+  --t3: #2d4460;
+  --t4: #162030;
+
+  /* ── type ── */
+  --display: 'Oxanium', sans-serif;
+  --body:    'DM Sans', sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+
+  /* ── misc ── */
+  --nav:    64px;
+  --max:    1240px;
+  --rd:     13px;
+  --rd-sm:  8px;
+  --ease:   cubic-bezier(0.22, 1, 0.36, 1);
+  --tr:     0.2s var(--ease);
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: var(--body);
+  background: var(--ink);
+  color: var(--t2);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── background mesh ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 0%,  rgba(0,200,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 90% 100%, rgba(0,255,224,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%,  rgba(176,126,250,0.035) 0%, transparent 60%),
+    linear-gradient(180deg, var(--ink) 0%, var(--ink2) 100%);
+}
+
+/* ── dot grid ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0,200,255,0.12) 1px, transparent 1px);
+  background-size: 36px 36px;
+  opacity: 0.22;
+  mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 40%, transparent 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════════════════════ */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  height: var(--nav);
+  background: rgba(2,8,16,0.85);
+  backdrop-filter: blur(28px) saturate(180%);
+  border-bottom: 1px solid var(--rim);
+}
+.nav-inner {
+  max-width: var(--max); margin: 0 auto; height: 100%;
+  padding: 0 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+
+/* logo */
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(135deg, #0090c8, var(--teal));
+  display: grid; place-items: center;
+  font-size: 17px; line-height: 1;
+  box-shadow: 0 0 24px var(--neo-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.logo-name {
+  font-family: var(--display);
+  font-size: 18px; font-weight: 700;
+  color: var(--w); letter-spacing: 0.5px;
+}
+.logo-ver {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--neo);
+  background: var(--neo-dim);
+  border: 1px solid rgba(0,200,255,0.18);
+  padding: 2px 9px; border-radius: 20px;
+}
+
+/* nav actions */
+.nav-right { display: flex; align-items: center; gap: 10px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE SHELL
+═══════════════════════════════════════════════════════════════ */
+.page {
+  position: relative; z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 36px 120px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════════════ */
+.hero {
+  padding: 80px 0 60px;
+  text-align: center;
+  position: relative;
+}
+
+/* horizontal rule lines flanking eyebrow */
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 12px;
+  margin-bottom: 24px;
+}
+.eyebrow-rule {
+  width: 40px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neo));
+}
+.eyebrow-rule.right { background: linear-gradient(90deg, var(--neo), transparent); }
+.eyebrow-txt {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3.5px;
+  text-transform: uppercase; color: var(--neo);
+}
+
+.hero-h1 {
+  font-family: var(--display);
+  font-size: clamp(36px, 5.5vw, 62px);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -1px;
+  color: var(--w);
+  margin-bottom: 18px;
+}
+.hero-h1 em {
+  font-style: normal;
+  background: linear-gradient(100deg, var(--neo) 0%, var(--teal) 55%, var(--lilac) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 40px rgba(0,200,255,0.35));
+}
+.hero-sub {
+  font-size: 15px; color: var(--t2);
+  max-width: 480px; margin: 0 auto 36px;
+  font-weight: 300; line-height: 1.7;
+}
+
+/* live indicator */
+.live-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+  color: var(--jade);
+  background: rgba(0,232,135,0.06);
+  border: 1px solid rgba(0,232,135,0.2);
+  padding: 5px 14px; border-radius: 20px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--jade);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity:1; box-shadow: 0 0 0 0 rgba(0,232,135,0.4); }
+  50%       { opacity:0.6; box-shadow: 0 0 0 5px rgba(0,232,135,0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NOTE INPUT
+═══════════════════════════════════════════════════════════════ */
+.note-bar {
+  display: flex; gap: 8px; align-items: stretch;
+  background: var(--glass);
+  border: 1px solid var(--rim);
+  border-radius: var(--rd);
+  padding: 6px 6px 6px 20px;
+  margin-bottom: 48px;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.note-bar:focus-within {
+  border-color: var(--rim-hi);
+  box-shadow: 0 0 0 3px rgba(0,200,255,0.05), 0 12px 40px rgba(0,200,255,0.06);
+}
+.note-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  font-family: var(--body); font-size: 14px; color: var(--t1);
+  padding: 10px 0;
+}
+.note-input::placeholder { color: var(--t3); }
+
+/* ═══════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--body); font-size: 13.5px; font-weight: 600;
+  border: none; border-radius: var(--rd-sm);
+  padding: 11px 22px; cursor: pointer;
+  transition: var(--tr); white-space: nowrap;
+  user-select: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #007fb5, var(--neo));
+  color: #fff;
+  box-shadow: 0 4px 22px rgba(0,200,255,0.28);
+}
+.btn-primary:hover { box-shadow: 0 6px 32px rgba(0,200,255,0.46); transform: translateY(-1px); }
+
+.btn-outline {
+  background: transparent; color: var(--t2);
+  border: 1px solid var(--rim);
+}
+.btn-outline:hover { border-color: var(--rim-hi); color: var(--t1); background: var(--neo-dim); }
+
+.btn-report {
+  background: linear-gradient(135deg, rgba(0,255,224,0.1), rgba(0,200,255,0.1));
+  border: 1px solid rgba(0,200,255,0.24);
+  color: var(--neo);
+  padding: 10px 22px;
+}
+.btn-report:hover {
+  background: linear-gradient(135deg, rgba(0,255,224,0.16), rgba(0,200,255,0.18));
+  border-color: rgba(0,200,255,0.45);
+  box-shadow: 0 0 22px rgba(0,200,255,0.18);
+}
+
+.btn-sim {
+  background: linear-gradient(135deg, #7a3fca, var(--lilac));
+  color: #fff;
+  padding: 16px 30px;
+  border-radius: var(--rd-sm);
+  font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
+  box-shadow: 0 4px 24px rgba(176,126,250,0.32);
+  align-self: flex-end;
+}
+.btn-sim:hover { box-shadow: 0 6px 36px rgba(176,126,250,0.5); transform: translateY(-1px); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION LABEL
+═══════════════════════════════════════════════════════════════ */
+.sec {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sec-label {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--t3);
+}
+.sec-label::before {
+  content: '';
+  width: 20px; height: 1px;
+  background: linear-gradient(90deg, var(--neo), transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   METRIC CARDS
+═══════════════════════════════════════════════════════════════ */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 48px;
+}
+
+.card {
+  background: var(--glass);
+  border: 1px solid var(--rim);
+  border-radius: var(--rd);
+  padding: 24px 20px 20px;
+  position: relative; overflow: hidden;
+  cursor: default;
+  transition: transform var(--tr), border-color var(--tr), box-shadow var(--tr);
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--c-line, linear-gradient(90deg, var(--neo), var(--teal)));
+}
+.card::after {
+  content: '';
+  position: absolute; bottom: -20px; right: -15px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--c-blob, rgba(0,200,255,0.12));
+  filter: blur(24px); pointer-events: none;
+}
+.card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.09);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+.card-icon { font-size: 20px; margin-bottom: 16px; display: block; }
+.card-val {
+  font-family: var(--display); font-size: 30px; font-weight: 700;
+  color: var(--w); line-height: 1; margin-bottom: 8px;
+}
+.card-val.md { font-size: 16px; line-height: 1.4; }
+.card-lbl {
+  font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--t3);
+}
+
+/* card colour variants */
+.c-score { --c-line: linear-gradient(90deg, var(--neo), var(--teal)); --c-blob: rgba(0,200,255,0.13); }
+.c-risk  { --c-line: linear-gradient(90deg, var(--rose), var(--ember)); --c-blob: rgba(255,58,110,0.12); }
+.c-strat { --c-line: linear-gradient(90deg, var(--lilac), #818cf8); --c-blob: rgba(176,126,250,0.13); }
+.c-pred  { --c-line: linear-gradient(90deg, var(--jade), var(--teal)); --c-blob: rgba(0,232,135,0.12); }
+
+/* ═══════════════════════════════════════════════════════════════
+   PANEL BASE
+═══════════════════════════════════════════════════════════════ */
+.panel {
+  background: var(--glass);
+  border: 1px solid var(--rim);
+  border-radius: var(--rd);
+  overflow: hidden;
+}
+.panel-hd {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--rim);
+  background: rgba(255,255,255,0.014);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--t1); letter-spacing: 0.3px;
+  display: flex; align-items: center; gap: 9px;
+}
+.panel-body { padding: 22px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CHART + RISK GRID
+═══════════════════════════════════════════════════════════════ */
+.grid-cr {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.chart-wrap { height: 250px; position: relative; }
+
+/* risk */
+.risk-list { display: flex; flex-direction: column; gap: 20px; }
+.risk-name { font-size: 12px; font-weight: 500; color: var(--t2); }
+.risk-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.risk-pct  { font-family: var(--mono); font-size: 10px; }
+.track { width: 100%; height: 2px; background: rgba(255,255,255,0.055); border-radius: 2px; overflow: hidden; }
+.fill  { height: 100%; width: 0%; border-radius: 2px; transition: width 1.6s var(--ease); }
+.f-burn { background: linear-gradient(90deg, var(--gold), var(--rose)); }
+.f-proc { background: linear-gradient(90deg, #fbbf24, var(--gold)); }
+.f-over { background: linear-gradient(90deg, var(--lilac), #818cf8); }
+
+/* strategy */
+.strat-list { display: flex; flex-direction: column; gap: 10px; }
+.strat-card {
+  background: rgba(255,255,255,0.018);
+  border: 1px solid var(--rim); border-radius: var(--rd-sm);
+  padding: 13px 15px;
+}
+.strat-tag {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--t3); margin-bottom: 6px;
+}
+.strat-val { font-size: 12px; color: var(--t2); line-height: 1.65; }
+
+/* ═══════════════════════════════════════════════════════════════
+   HEATMAP
+═══════════════════════════════════════════════════════════════ */
+.heatmap {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 8px; padding: 22px;
+}
+.hm-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.hm-day { font-size: 9px; color: var(--t3); font-family: var(--mono); letter-spacing: 0.5px; }
+.hm-cell {
+  width: 100%; aspect-ratio: 1; border-radius: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  position: relative; cursor: default;
+  transition: transform 0.14s;
+}
+.hm-cell:hover { transform: scale(1.25); z-index: 2; }
+.hm-tip {
+  display: none;
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: rgba(2,8,16,0.96); border: 1px solid var(--rim);
+  border-radius: 5px; padding: 4px 9px;
+  font-family: var(--mono); font-size: 9px; color: var(--t1);
+  white-space: nowrap; z-index: 10;
+}
+.hm-cell:hover .hm-tip { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI INSIGHTS
+═══════════════════════════════════════════════════════════════ */
+.insights-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.insight-list { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; }
+.iitem {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(255,255,255,0.016);
+  border: 1px solid var(--rim); border-radius: var(--rd-sm);
+  padding: 12px 14px;
+  transition: border-color var(--tr), transform var(--tr);
+}
+.iitem:hover { border-color: rgba(0,200,255,0.18); transform: translateX(3px); }
+.inum {
+  font-family: var(--mono); font-size: 9.5px; color: var(--neo);
+  background: var(--neo-dim); border: 1px solid rgba(0,200,255,0.14);
+  border-radius: 4px; width: 22px; height: 22px; flex-shrink: 0;
+  display: grid; place-items: center;
+}
+.itxt { font-size: 12px; color: var(--t2); line-height: 1.7; }
+.empty { font-size: 12px; color: var(--t4); padding: 4px 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DIVIDER
+═══════════════════════════════════════════════════════════════ */
+.rule {
+  height: 1px; margin: 48px 0;
+  background: linear-gradient(90deg, transparent, var(--rim), transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIMULATION ENGINE
+═══════════════════════════════════════════════════════════════ */
+.sim-intro {
+  font-size: 13px; color: var(--t3); line-height: 1.7;
+  margin-bottom: 20px; max-width: 600px;
+}
+.sim-badge {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--lilac);
+  background: rgba(176,126,250,0.07);
+  border: 1px solid rgba(176,126,250,0.18);
+  padding: 4px 12px; border-radius: 20px;
+}
+.sim-row {
+  display: flex; gap: 10px; align-items: flex-end;
+  margin-bottom: 18px;
+}
+.sim-input {
+  flex: 1;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--rim);
+  border-radius: var(--rd-sm);
+  padding: 18px 20px;
+  font-family: var(--body); font-size: 14px; color: var(--t1);
+  outline: none; min-height: 62px;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.sim-input::placeholder { color: var(--t3); }
+.sim-input:focus {
+  border-color: rgba(176,126,250,0.38);
+  box-shadow: 0 0 0 3px rgba(176,126,250,0.07);
+}
+
+.sim-out { display: none; }
+.sim-out.show { display: block; animation: slide-up 0.3s var(--ease) both; }
+@keyframes slide-up { from { opacity:0; transform:translateY(10px); } }
+
+.sim-result-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 14px;
+}
+.sim-rc {
+  background: rgba(255,255,255,0.022);
+  border: 1px solid var(--rim); border-radius: var(--rd-sm);
+  padding: 16px 14px; text-align: center;
+}
+.sim-rc-val {
+  font-family: var(--display); font-size: 24px; font-weight: 700;
+  color: var(--w); margin-bottom: 6px;
+}
+.sim-rc-lbl {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--t3);
+}
+.sim-advice {
+  background: rgba(176,126,250,0.04);
+  border: 1px solid rgba(176,126,250,0.13);
+  border-radius: var(--rd-sm); padding: 14px 18px;
+  font-size: 13px; color: var(--t2); line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REPORT
+═══════════════════════════════════════════════════════════════ */
+#reportBox {
+  font-family: var(--mono); font-size: 10.5px;
+  color: var(--t3); line-height: 2.1;
+  white-space: pre-wrap;
+  min-height: 80px; max-height: 480px;
+  overflow-y: auto; padding: 22px;
+}
+#reportBox::-webkit-scrollbar { width: 3px; }
+#reportBox::-webkit-scrollbar-thumb { background: var(--rim); border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SPINNER
+═══════════════════════════════════════════════════════════════ */
+.sp {
+  display: inline-block; width: 11px; height: 11px;
+  border: 2px solid rgba(255,255,255,0.12); border-top-color: currentColor;
+  border-radius: 50%; animation: spin 0.55s linear infinite;
+  vertical-align: middle; margin-right: 5px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 999;
+  padding: 10px 18px; border-radius: 9px;
+  font-family: var(--mono); font-size: 11px;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════════════ */
+.footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--rim);
+  background: rgba(2,8,16,0.75);
+  backdrop-filter: blur(20px);
+  padding: 56px 36px 48px;
+}
+.footer-in {
+  max-width: var(--max); margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+  text-align: center;
+}
+.footer-logo { display: flex; align-items: center; gap: 11px; }
+.footer-logo-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #0090c8, var(--teal));
+  display: grid; place-items: center; font-size: 15px;
+  box-shadow: 0 0 16px var(--neo-glow);
+}
+.footer-logo-name {
+  font-family: var(--display); font-size: 16px; font-weight: 700; color: var(--w);
+}
+.footer-desc { font-size: 12.5px; color: var(--t3); letter-spacing: 0.2px; }
+
+.footer-links {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+}
+.footer-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 16px;
+  background: var(--glass); border: 1px solid var(--rim);
+  border-radius: 24px; text-decoration: none;
+  font-size: 12px; font-weight: 500; color: var(--t2);
+  transition: var(--tr); letter-spacing: 0.2px;
+}
+.footer-link:hover {
+  border-color: var(--rim-hi); color: var(--neo);
+  background: var(--neo-dim);
+  box-shadow: 0 0 14px rgba(0,200,255,0.1);
+}
+.footer-sep { color: var(--t4); font-size: 10px; }
+
+.footer-credit {
+  font-family: var(--mono); font-size: 10px; color: var(--t4);
+  letter-spacing: 0.5px;
+}
+.footer-credit b { color: var(--neo); font-weight: 500; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ENTRANCE ANIMATIONS
+═══════════════════════════════════════════════════════════════ */
+.fade-up { animation: fade-up 0.5s var(--ease) both; }
+.d1 { animation-delay: 0.05s; }
+.d2 { animation-delay: 0.12s; }
+.d3 { animation-delay: 0.19s; }
+.d4 { animation-delay: 0.26s; }
+.d5 { animation-delay: 0.33s; }
+.d6 { animation-delay: 0.40s; }
+@keyframes fade-up { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .grid-cr   { grid-template-columns: 1fr; }
+  .cards     { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 720px) {
+  .page, .footer { padding-left: 18px; padding-right: 18px; }
+  .nav-inner     { padding: 0 18px; }
+  .insights-grid { grid-template-columns: 1fr; }
+  .sim-result-grid { grid-template-columns: 1fr 1fr; }
+  .hero-h1       { font-size: 32px; }
+}
+@media (max-width: 480px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+  .sim-row { flex-direction: column; }
+  .logo-ver { display: none; }
+  .sim-result-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     NAV
+══════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#">
+      <div class="logo-mark">🧠</div>
+      <span class="logo-name">ContextWeave</span>
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-report" onclick="getReport()">⚡ Generate Report</button>
+      <button class="btn btn-outline" onclick="logout()" style="padding:9px 16px;font-size:12px;">Sign Out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     PAGE
+══════════════════════════════════════════ -->
+<main class="page">
+
+  <!-- HERO ──────────────────────────────── -->
+  <section class="hero fade-up">
+    <div class="hero-eyebrow">
+      <div class="eyebrow-rule"></div>
+      <span class="eyebrow-txt">Cognitive Analytics Platform</span>
+      <div class="eyebrow-rule right"></div>
+    </div>
+    <h1 class="hero-h1">AI-Powered<br><em>Behavioral Intelligence</em></h1>
+    <p class="hero-sub">
+      Track cognitive patterns, detect burnout and procrastination signals,
+      and simulate behavioral scenarios — all in one intelligent dashboard.
+    </p>
+    <div class="live-pill">
+      <span class="live-dot"></span>
+      System Active
+    </div>
+  </section>
+
+  <!-- NOTE INPUT ─────────────────────────── -->
+  <div class="note-bar fade-up d1">
+    <input id="noteText" class="note-input" type="text"
+      placeholder="Log a behavioral note — e.g. 'Finished project draft, feeling focused and on track'">
+    <button class="btn btn-primary" id="addBtn" onclick="addNote()">＋ Add Note</button>
+  </div>
+
+  <!-- METRICS ────────────────────────────── -->
+  <div class="sec fade-up d2">
+    <span class="sec-label">Live Metrics</span>
+  </div>
+  <div class="cards fade-up d2">
+    <div class="card c-score">
+      <span class="card-icon">🎯</span>
+      <div class="card-val" id="card-score">—</div>
+      <div class="card-lbl">Cognitive Score</div>
+    </div>
+    <div class="card c-risk">
+      <span class="card-icon">⚠️</span>
+      <div class="card-val md" id="card-risk">—</div>
+      <div class="card-lbl">Dominant Risk</div>
+    </div>
+    <div class="card c-strat">
+      <span class="card-icon">🧭</span>
+      <div class="card-val md" id="card-strat">—</div>
+      <div class="card-lbl">Strategy Mode</div>
+    </div>
+    <div class="card c-pred">
+      <span class="card-icon">🔮</span>
+      <div class="card-val md" id="card-pred">—</div>
+      <div class="card-lbl">Predicted Score</div>
+    </div>
+  </div>
+
+  <!-- BEHAVIOR TIMELINE + RISK ───────────── -->
+  <div class="sec fade-up d3">
+    <span class="sec-label">Behavior Timeline</span>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t3);">
+        <div style="width:14px;height:2px;background:var(--neo);border-radius:2px;"></div>Historical
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t3);">
+        <div style="width:14px;height:0;border-top:2px dashed var(--teal);"></div>Forecast
+      </div>
+    </div>
+  </div>
+  <div class="grid-cr fade-up d3">
+    <div class="panel">
+      <div class="panel-hd">
+        <span class="panel-title">📈 Cognitive Score Over Time</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="behaviorChart"></canvas></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <!-- risk monitor -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🚨 Risk Monitor</span></div>
+        <div class="panel-body">
+          <div class="risk-list">
+            <div>
+              <div class="risk-meta">
+                <span class="risk-name">Burnout</span>
+                <span class="risk-pct" id="rv-burn" style="color:var(--rose)">—</span>
+              </div>
+              <div class="track"><div class="fill f-burn" id="rb-burn"></div></div>
+            </div>
+            <div>
+              <div class="risk-meta">
+                <span class="risk-name">Procrastination</span>
+                <span class="risk-pct" id="rv-proc" style="color:var(--gold)">—</span>
+              </div>
+              <div class="track"><div class="fill f-proc" id="rb-proc"></div></div>
+            </div>
+            <div>
+              <div class="risk-meta">
+                <span class="risk-name">Overload</span>
+                <span class="risk-pct" id="rv-over" style="color:var(--lilac)">—</span>
+              </div>
+              <div class="track"><div class="fill f-over" id="rb-over"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- strategy -->
+      <div class="panel" style="flex:1;">
+        <div class="panel-hd"><span class="panel-title">🧭 AI Strategy</span></div>
+        <div class="panel-body" style="padding:16px;">
+          <div class="strat-list">
+            <div class="strat-card">
+              <div class="strat-tag">✅ Primary Recommendation</div>
+              <div class="strat-val" id="s-rec">Generate a report to see strategy.</div>
+            </div>
+            <div class="strat-card">
+              <div class="strat-tag">🚫 Avoid This Week</div>
+              <div class="strat-val" id="s-avoid">—</div>
+            </div>
+            <div class="strat-card">
+              <div class="strat-tag">🎯 Focus Advice</div>
+              <div class="strat-val" id="s-focus">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP ─────────────────────────────── -->
+  <div class="sec fade-up d3">
+    <span class="sec-label">Weekly Cognitive Heatmap</span>
+  </div>
+  <div class="panel fade-up d3" style="margin-bottom:48px;">
+    <div class="panel-hd">
+      <span class="panel-title">🔥 Cognitive Intensity — Last 4 Weeks</span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--t3);">
+        <div style="width:9px;height:9px;border-radius:2px;background:rgba(255,255,255,0.04);border:1px solid var(--rim);"></div>None
+        <div style="width:9px;height:9px;border-radius:2px;background:rgba(0,200,255,0.55);"></div>High
+      </div>
+    </div>
+    <div id="heatmap" class="heatmap"></div>
+  </div>
+
+  <!-- AI INSIGHTS ─────────────────────────── -->
+  <div class="sec fade-up d4">
+    <span class="sec-label">AI Insights</span>
+  </div>
+  <div class="insights-grid fade-up d4">
+    <div class="panel">
+      <div class="panel-hd"><span class="panel-title">🔁 Behavioral Patterns Detected</span></div>
+      <div id="patList" class="insight-list">
+        <div class="empty">Generate a report to surface behavioral patterns.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-hd"><span class="panel-title">🧠 AI-Generated Insights</span></div>
+      <div id="insList" class="insight-list">
+        <div class="empty">AI insights will appear after report generation.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <!-- SIMULATION ENGINE ───────────────────── -->
+  <div class="sec fade-up d5">
+    <span class="sec-label">Simulation Engine</span>
+    <span class="sim-badge">AI Powered</span>
+  </div>
+  <div class="panel fade-up d5" style="margin-bottom:48px;">
+    <div class="panel-hd">
+      <span class="panel-title">🔬 What-If Scenario Simulator</span>
+    </div>
+    <div class="panel-body">
+      <p class="sim-intro">
+        Describe a hypothetical day and the AI engine will predict your cognitive score,
+        risk level, and recommend an action strategy — before you live it.
+      </p>
+      <div class="sim-row">
+        <input id="simInp" class="sim-input" type="text"
+          placeholder="e.g. 'I slept only 4 hours, have 6 back-to-back meetings and a critical deadline tomorrow'">
+        <button class="btn btn-sim" id="simBtn" onclick="runSim()">▶ Simulate</button>
+      </div>
+      <div class="sim-out" id="simOut">
+        <div class="sim-result-grid">
+          <div class="sim-rc">
+            <div class="sim-rc-val" id="sim-score">—</div>
+            <div class="sim-rc-lbl">Predicted Score</div>
+          </div>
+          <div class="sim-rc">
+            <div class="sim-rc-val" id="sim-risk" style="font-size:17px;">—</div>
+            <div class="sim-rc-lbl">Risk Level</div>
+          </div>
+          <div class="sim-rc">
+            <div class="sim-rc-val" id="sim-sigs" style="font-size:13px;line-height:1.5;">—</div>
+            <div class="sim-rc-lbl">Signals</div>
+          </div>
+        </div>
+        <div class="sim-advice" id="sim-rec">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL REPORT ─────────────────────────── -->
+  <div class="sec fade-up d6">
+    <span class="sec-label">Full AI Report</span>
+    <button class="btn btn-outline" onclick="getReport()" style="padding:7px 16px;font-size:12px;">↻ Refresh</button>
+  </div>
+  <div class="panel fade-up d6">
+    <div class="panel-hd">
+      <span class="panel-title">📋 Daily Behavioral Intelligence Report</span>
+    </div>
+    <pre id="reportBox">Click "Generate Report" to run full behavioral analysis…</pre>
+  </div>
+
+</main>
+
+<!-- ══════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer-in">
+    <div class="footer-logo">
+      <div class="footer-logo-mark">🧠</div>
+      <span class="footer-logo-name">ContextWeave</span>
+    </div>
+    <p class="footer-desc">Behavioral Intelligence System — AI-powered cognitive analytics</p>
+    <div class="footer-links">
+      <a class="footer-link" href="https://github.com/kayastha-07" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        GitHub
+      </a>
+      <span class="footer-sep">·</span>
+      <a class="footer-link" href="https://www.linkedin.com/in/anchal-shrivastav-647141276" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <span class="footer-sep">·</span>
+      <a class="footer-link" href="https://www.instagram.com/4bhishek.s" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        Instagram
+      </a>
+    </div>
+    <p class="footer-credit">Built by <b>Anchal Kumar Shrivastav</b> · ContextWeave © 2026</p>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   AUTH — JWT token guard + authFetch wrapper
+════════════════════════════════════════════ */
+const TOKEN = localStorage.getItem("cw_token");
+if (!TOKEN) location.replace("/login-page");
+
+async function authFetch(url, opts = {}) {
+  opts.headers = {
+    "Content-Type":  "application/json",
+    "Authorization": `Bearer ${TOKEN}`,
+    ...(opts.headers || {}),
+  };
+  const res = await fetch(url, opts);
+  if (res.status === 401) {
+    localStorage.removeItem("cw_token");
+    location.replace("/login-page");
+  }
+  return res;
+}
+
+function logout() {
+  localStorage.removeItem("cw_token");
+  location.replace("/login-page");
+}
+
+/* ════════════════════════════════════════════
+   CHART STATE
+════════════════════════════════════════════ */
+let behaviorChart = null;
+
+/* ════════════════════════════════════════════
+   ADD NOTE  →  POST /add-note
+════════════════════════════════════════════ */
+async function addNote() {
+  const inp  = document.getElementById("noteText");
+  const text = inp.value.trim();
+  if (!text) { toast("Type a note first", true); return; }
+
+  const btn = document.getElementById("addBtn");
+  btn.innerHTML = '<span class="sp"></span>Saving…';
+  btn.disabled  = true;
+
+  try {
+    const res  = await authFetch("/add-note", {
+      method: "POST",
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    inp.value = "";
+    toast("✓ Note saved");
+    await loadChart();
+  } catch {
+    toast("⚠ Failed to save note", true);
+  } finally {
+    btn.innerHTML = "＋ Add Note";
+    btn.disabled  = false;
+  }
+}
+
+/* ════════════════════════════════════════════
+   GENERATE REPORT  →  GET /report
+════════════════════════════════════════════ */
+async function getReport() {
+  const box = document.getElementById("reportBox");
+  box.innerHTML = '<span class="sp"></span> Running behavioral analysis…';
+
+  try {
+    const res  = await authFetch("/report");
+    const data = await res.json();
+    box.innerText = data.report || "No report returned.";
+    parseAndPopulate(data.report || "");
+    await loadChart();
+  } catch {
+    box.innerText = "⚠ Could not fetch report. Is the server running?";
+  }
+}
+
+/* ════════════════════════════════════════════
+   LOAD CHART + HEATMAP  →  GET /behavior-data
+════════════════════════════════════════════ */
+async function loadChart() {
+  try {
+    const res  = await authFetch("/behavior-data");
+    const data = await res.json();
+
+    buildHeatmap(data.dates || [], data.scores || []);
+
+    if (!data.dates || !data.dates.length) return;
+
+    const dates   = data.dates;
+    const scores  = data.scores;
+    const fDates  = data.forecast_dates  || [];
+    const fScores = data.forecast_scores || [];
+    const labels  = [...dates, ...fDates];
+
+    const ctx = document.getElementById("behaviorChart").getContext("2d");
+    if (behaviorChart) behaviorChart.destroy();
+
+    behaviorChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Cognitive Score",
+            data:  scores,
+            borderColor: "#00c8ff",
+            backgroundColor: "rgba(0,200,255,0.06)",
+            borderWidth: 2.5, tension: 0.42, fill: true,
+            pointBackgroundColor: "#00c8ff",
+            pointRadius: 4, pointHoverRadius: 7,
+          },
+          ...(fScores.length ? [{
+            label: "Forecast",
+            data:  [...Array(dates.length).fill(null), ...fScores],
+            borderColor: "#00ffe0", borderDash: [6,4], borderWidth: 2,
+            tension: 0.42, fill: false,
+            pointBackgroundColor: "#00ffe0",
+            pointRadius: 3, pointHoverRadius: 6,
+          }] : [])
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(2,8,16,0.97)",
+            borderColor: "rgba(0,200,255,0.2)", borderWidth: 1,
+            titleColor: "#ddeeff", bodyColor: "#7a9ab8", padding: 13,
+            titleFont: { family: "'JetBrains Mono',monospace", size: 10 },
+          }
+        },
+        scales: {
+          x: { ticks: { color:"#2d4460", font:{size:9}, maxTicksLimit:8 }, grid: { color:"rgba(255,255,255,0.02)" } },
+          y: { min:0, max:100, ticks: { color:"#2d4460", font:{size:9} }, grid: { color:"rgba(255,255,255,0.02)" } }
+        }
+      }
+    });
+
+    if (scores.length) {
+      const last = scores[scores.length - 1];
+      animNum("card-score", 0, last, 900);
+    }
+
+  } catch (e) { console.warn("Chart error:", e); }
+}
+
+/* ════════════════════════════════════════════
+   HEATMAP BUILDER
+════════════════════════════════════════════ */
+function buildHeatmap(dates, scores) {
+  const el   = document.getElementById("heatmap");
+  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const map  = {};
+  dates.forEach((d, i) => { map[d] = scores[i]; });
+
+  const today     = new Date();
+  const dow       = (today.getDay() + 6) % 7;
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - dow - 21);
+
+  const cols = Array.from({ length: 7 }, () => []);
+  for (let i = 0; i < 28; i++) {
+    const d   = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    cols[i % 7].push({ key, score: map[key] ?? null });
+  }
+
+  el.innerHTML = days.map((day, ci) => `
+    <div class="hm-col">
+      <div class="hm-day">${day}</div>
+      ${cols[ci].map(c => {
+        const bg  = c.score !== null ? hmColor(c.score) : "rgba(255,255,255,0.04)";
+        const tip = c.score !== null ? `${c.key}: ${c.score}` : c.key;
+        return `<div class="hm-cell" style="background:${bg}"><div class="hm-tip">${tip}</div></div>`;
+      }).join("")}
+    </div>
+  `).join("");
+}
+
+function hmColor(s) {
+  s = Math.max(0, Math.min(100, s));
+  if (s < 35) return `rgba(255,58,110,${0.15 + (s/35)*0.32})`;
+  if (s < 55) return `rgba(255,204,68,${0.16 + ((s-35)/20)*0.32})`;
+  if (s < 75) return `rgba(0,255,224,${0.18 + ((s-55)/20)*0.38})`;
+  return             `rgba(0,200,255,${0.28 + ((s-75)/25)*0.52})`;
+}
+
+/* ════════════════════════════════════════════
+   PARSE REPORT → populate panels
+════════════════════════════════════════════ */
+function parseAndPopulate(text) {
+  const get = rx => { const m = text.match(rx); return m ? m[1].trim() : null; };
+
+  const score = get(/Cognitive Score\s*:\s*(\d+)/);
+  const risk  = get(/Dominant Risk\s*:\s*(.+)/);
+  const strat = get(/Strategy Mode\s*:\s*(.+)/);
+  const pred  = get(/Predicted Next Score\s*:\s*(.+)/);
+
+  if (score) animNum("card-score", 0, parseInt(score), 900);
+  if (risk)  setText("card-risk",  risk);
+  if (strat) setText("card-strat", strat);
+  if (pred)  setText("card-pred",  pred);
+
+  const rec   = get(/Primary Recommendation[:\s]+(.+)/);
+  const avoid = get(/Avoid[:\s]+(.+)/);
+  const focus = get(/Focus Advice\s*:\s*(.+)/);
+  if (rec)   setText("s-rec",   rec);
+  if (avoid) setText("s-avoid", avoid);
+  if (focus) setText("s-focus", focus);
+
+  const inT = t => text.toLowerCase().includes(t);
+  setRiskBar("burn", inT("burnout")         ? 38 : 10);
+  setRiskBar("proc", inT("procrastination") ? 32 : 12);
+  setRiskBar("over", inT("overload")        ? 25 : 10);
+
+  renderList("patList", extractNumbered(extractSection(text, "Behavioral Patterns Detected")));
+  renderList("insList",  extractNumbered(extractSection(text, "AI Insights")));
+}
+
+function extractSection(text, heading) {
+  const rx = new RegExp(`${heading}[\\s\\S]*?(?=\\n[🔁🧠🚨✅🔮📋━]|$)`, "m");
+  const m  = text.match(rx);
+  return m ? m[0] : "";
+}
+function extractNumbered(block) {
+  const items = [];
+  for (const line of block.split("\n")) {
+    const m = line.match(/^\s*\d+\.\s+(.+)/);
+    if (m) items.push(m[1].trim());
+  }
+  return items;
+}
+function renderList(id, items) {
+  const el = document.getElementById(id);
+  if (!items.length) return;
+  el.innerHTML = items.map((txt, i) => `
+    <div class="iitem" style="animation-delay:${i*60}ms">
+      <div class="inum">${i+1}</div>
+      <div class="itxt">${txt}</div>
+    </div>
+  `).join("");
+}
+
+/* ════════════════════════════════════════════
+   SIMULATION  →  POST /simulate
+════════════════════════════════════════════ */
+async function runSim() {
+  const inp      = document.getElementById("simInp");
+  const scenario = inp.value.trim();
+  if (!scenario) { toast("Describe a scenario first", true); return; }
+
+  const btn = document.getElementById("simBtn");
+  btn.innerHTML = '<span class="sp"></span>Simulating…';
+  btn.disabled  = true;
+
+  try {
+    const res  = await authFetch("/simulate", {
+      method: "POST",
+      body: JSON.stringify({ scenario })
+    });
+    const data = await res.json();
+
+    document.getElementById("simOut").classList.add("show");
+
+    animNum("sim-score", 0, data.predicted_score, 800);
+    setText("sim-risk", data.risk);
+    setText("sim-rec",  data.recommendation);
+
+    const sig = data.signals_detected || {};
+    setText("sim-sigs", `S:${sig.stress_signals||0}  D:${sig.delay_signals||0}  A:${sig.action_signals||0}`);
+
+    const rEl = document.getElementById("sim-risk");
+    rEl.style.color =
+      data.risk === "High"     ? "var(--rose)"  :
+      data.risk === "Moderate" ? "var(--gold)"   : "var(--jade)";
+
+    toast("✓ Simulation complete");
+  } catch {
+    toast("⚠ Simulation failed", true);
+  } finally {
+    btn.innerHTML = "▶ Simulate";
+    btn.disabled  = false;
+  }
+}
+
+/* ════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════ */
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = val;
+}
+function setRiskBar(key, pct) {
+  setText(`rv-${key}`, pct + "%");
+  const bar = document.getElementById(`rb-${key}`);
+  if (bar) setTimeout(() => bar.style.width = pct + "%", 150);
+}
+function animNum(id, from, to, dur) {
+  const el = document.getElementById(id);
+  if (!el || isNaN(to)) return;
+  const t0 = performance.now();
+  const tick = now => {
+    const t = Math.min((now - t0) / dur, 1);
+    el.innerText = Math.round(from + (to - from) * (1 - Math.pow(1-t, 3)));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+let _tt;
+function toast(msg, err = false) {
+  const el = document.getElementById("toast");
+  el.style.background = err ? "rgba(255,58,110,0.1)" : "rgba(0,232,135,0.08)";
+  el.style.border      = `1px solid ${err ? "rgba(255,58,110,0.28)" : "rgba(0,232,135,0.22)"}`;
+  el.style.color       = err ? "var(--rose)" : "var(--jade)";
+  el.innerText         = msg;
+  el.style.opacity     = "1";
+  el.style.transform   = "translateY(0)";
+  clearTimeout(_tt);
+  _tt = setTimeout(() => {
+    el.style.opacity   = "0";
+    el.style.transform = "translateY(10px)";
+  }, 2800);
+}
+
+/* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+document.addEventListener("DOMContentLoaded", () => {
+  loadChart();
+  buildHeatmap([], []);
+
+  document.getElementById("noteText").addEventListener("keydown", e => {
+    if (e.key === "Enter") addNote();
+  });
+  document.getElementById("simInp").addEventListener("keydown", e => {
+    if (e.key === "Enter") runSim();
+  });
+});
+</script>
+</body>
+</html>

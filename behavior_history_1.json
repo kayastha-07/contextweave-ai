@@ -1,0 +1,23 @@
+[
+  {
+    "date": "2026-03-07",
+    "score": 55,
+    "trajectory": "stable",
+    "strategy": "Stability",
+    "risk": "procrastination"
+  },
+  {
+    "date": "2026-03-08",
+    "score": 53,
+    "trajectory": "stable",
+    "strategy": "Structure",
+    "risk": "procrastination"
+  },
+  {
+    "date": "2026-03-09",
+    "score": 50,
+    "trajectory": "insufficient_data",
+    "strategy": "Stability",
+    "risk": "burnout"
+  }
+]

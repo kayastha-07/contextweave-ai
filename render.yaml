@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: contextweave
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python -m spacy download en_core_web_sm"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: USE_GEMINI
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+```
+
+**Step 3** — Save the file as `render.yaml` (not `render.yaml.txt`) into:
+```
+C:\Users\Abhishek shrivastav\OneDrive\Documents\ContextWeave\

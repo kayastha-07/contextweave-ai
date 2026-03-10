@@ -195,6 +195,9 @@ h2 {
 
   <div class="error-msg" id="errMsg"></div>
 
+  <div class="footer-link" style="margin-top:12px">
+    <a href="#" onclick="showForgotForm()" style="color:var(--muted);font-size:12px">Forgot password?</a>
+  </div>
   <div class="footer-link">
     Don't have an account? <a href="/signup-page">Create one</a>
   </div>
@@ -257,5 +260,83 @@ h2 {
     el.style.display = "block";
   }
 </script>
+
+<!-- Forgot Password Form -->
+<div id="forgotForm" style="display:none;margin-top:20px">
+  <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
+  <h3 style="font-size:16px;font-weight:600;color:#fff;margin-bottom:6px">Reset Password</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Enter your email to receive an OTP.</p>
+
+  <div id="forgotStep1">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="resetEmail" placeholder="you@example.com">
+    </div>
+    <button class="btn-submit" onclick="sendResetOTP()" style="background:linear-gradient(135deg,#00e5c0,#009e88)">Send OTP</button>
+  </div>
+
+  <div id="forgotStep2" style="display:none">
+    <div class="field">
+      <label>OTP (check your email)</label>
+      <input type="text" id="resetOTP" placeholder="6-digit code" maxlength="6">
+    </div>
+    <div class="field">
+      <label>New Password</label>
+      <input type="password" id="resetNewPass" placeholder="Min. 8 characters">
+    </div>
+    <button class="btn-submit" onclick="doReset()" style="background:linear-gradient(135deg,#00e5c0,#009e88)">Reset Password</button>
+  </div>
+
+  <div class="error-msg"  id="resetErr"></div>
+  <div class="error-msg"  id="resetOk"  style="background:rgba(34,217,138,0.08);border-color:rgba(34,217,138,0.25);color:#22d98a"></div>
+</div>
+
+<script>
+function showForgotForm() {
+  document.getElementById('forgotForm').style.display = 'block';
+  document.getElementById('forgotForm').scrollIntoView({behavior:'smooth'});
+}
+
+async function sendResetOTP() {
+  const email = document.getElementById('resetEmail').value.trim();
+  const err   = document.getElementById('resetErr');
+  err.style.display = 'none';
+  if (!email) { showResetErr('Enter your email.'); return; }
+  try {
+    const res  = await fetch('/forgot-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email})
+    });
+    const data = await res.json();
+    document.getElementById('forgotStep1').style.display = 'none';
+    document.getElementById('forgotStep2').style.display = 'block';
+    document.getElementById('resetOk').textContent = '✓ OTP sent! Check your email.';
+    document.getElementById('resetOk').style.display = 'block';
+  } catch(e) { showResetErr('Network error.'); }
+}
+
+async function doReset() {
+  const email    = document.getElementById('resetEmail').value.trim();
+  const otp      = document.getElementById('resetOTP').value.trim();
+  const newPass  = document.getElementById('resetNewPass').value;
+  if (!otp || !newPass) { showResetErr('Fill in all fields.'); return; }
+  try {
+    const res  = await fetch('/reset-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, otp, new_password: newPass})
+    });
+    const data = await res.json();
+    if (!res.ok) { showResetErr(data.detail || 'Reset failed.'); return; }
+    document.getElementById('resetOk').textContent = '✓ Password reset! Redirecting to login…';
+    setTimeout(() => location.reload(), 2000);
+  } catch(e) { showResetErr('Network error.'); }
+}
+
+function showResetErr(msg) {
+  const el = document.getElementById('resetErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+</script>
+
 </body>
 </html>

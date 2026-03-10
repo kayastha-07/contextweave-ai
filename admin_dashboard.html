@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContextWeave — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050a12;--surface:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.07);
+  --text:#dde8f5;--muted:#4a6480;--accent:#3b9eff;--accent2:#00e5c0;
+  --danger:#ff4466;--good:#22d98a;--gold:#f5c842;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;}
+.blob{position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0;}
+.b1{width:500px;height:500px;background:rgba(59,158,255,0.05);top:-100px;left:-100px;}
+.b2{width:400px;height:400px;background:rgba(0,229,192,0.04);bottom:-80px;right:-80px;}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:10;background:rgba(5,10,18,0.85);
+     backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:60px;
+     display:flex;align-items:center;padding:0 24px;gap:12px;}
+.nav-logo{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:700;}
+.nav-badge{padding:3px 10px;background:rgba(255,68,102,0.15);border:1px solid rgba(255,68,102,0.3);
+           border-radius:20px;font-size:10px;color:#ff4466;letter-spacing:1px;font-family:var(--mono);}
+.nav-right{margin-left:auto;}
+.btn-logout{padding:7px 16px;background:none;border:1px solid var(--border);border-radius:8px;
+            color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--sans);}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+
+/* layout */
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:32px 24px;}
+
+/* login gate */
+.login-gate{max-width:380px;margin:80px auto;background:rgba(8,15,26,0.9);
+            border:1px solid var(--border);border-radius:18px;padding:40px;
+            backdrop-filter:blur(20px);}
+.gate-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:6px;}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;
+             text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.field input{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);
+             border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;
+             outline:none;font-family:var(--sans);margin-bottom:16px;}
+.field input:focus{border-color:rgba(59,158,255,0.4);}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#1a7de0);
+           border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;
+           cursor:pointer;font-family:var(--sans);}
+
+/* stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+           padding:22px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.blue::before{background:linear-gradient(90deg,var(--accent),transparent);}
+.stat-card.teal::before{background:linear-gradient(90deg,var(--accent2),transparent);}
+.stat-card.gold::before{background:linear-gradient(90deg,var(--gold),transparent);}
+.stat-card.red::before{background:linear-gradient(90deg,var(--danger),transparent);}
+.stat-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;
+            color:var(--muted);margin-bottom:8px;}
+.stat-val{font-size:32px;font-weight:700;color:#fff;line-height:1;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:6px;}
+
+/* table */
+.section-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;
+               color:var(--muted);margin-bottom:12px;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:12px 16px;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+         text-transform:uppercase;color:var(--muted);text-align:left;
+         border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);}
+tbody td{padding:12px 16px;font-size:13px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:rgba(255,255,255,0.02);}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-family:var(--mono);}
+.pill-green{background:rgba(34,217,138,0.1);color:var(--good);border:1px solid rgba(34,217,138,0.2);}
+.pill-red{background:rgba(255,68,102,0.1);color:var(--danger);border:1px solid rgba(255,68,102,0.2);}
+.pill-blue{background:rgba(59,158,255,0.1);color:var(--accent);border:1px solid rgba(59,158,255,0.2);}
+
+/* score bar */
+.score-bar-wrap{width:80px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;display:inline-block;vertical-align:middle;margin-left:8px;}
+.score-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+
+/* shimmer */
+.shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0.03) 75%);
+         background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;}
+@keyframes shimmer{to{background-position:-200% 0;}}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:rise 0.5s ease both;}
+
+/* responsive */
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .stat-val{font-size:24px;}
+  table{font-size:11px;}
+  thead th,tbody td{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div>
+
+<!-- Login gate -->
+<div id="loginGate">
+  <div style="position:relative;z-index:1">
+    <div class="nav">
+      <div class="nav-logo">🧠 ContextWeave</div>
+      <span class="nav-badge">ADMIN</span>
+    </div>
+    <div class="login-gate fade-in">
+      <div class="gate-title">Admin Access</div>
+      <div class="gate-sub">Enter the admin password to continue.</div>
+      <div class="field">
+        <label>Admin Password</label>
+        <input type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdminLogin()">
+      </div>
+      <button class="btn-login" onclick="doAdminLogin()">Enter Dashboard</button>
+      <div id="loginErr" style="color:#ff4466;font-size:12px;margin-top:12px;display:none">Incorrect password.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display:none">
+  <div class="nav">
+    <div class="nav-logo">🧠 ContextWeave</div>
+    <span class="nav-badge">ADMIN</span>
+    <div class="nav-right">
+      <button class="btn-logout" onclick="adminLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card blue shimmer" style="height:90px"></div>
+      <div class="stat-card teal shimmer" style="height:90px"></div>
+      <div class="stat-card gold shimmer" style="height:90px"></div>
+      <div class="stat-card red shimmer"  style="height:90px"></div>
+    </div>
+
+    <!-- Users table -->
+    <div class="section-title">All Users</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Email</th><th>Notes</th>
+            <th>Avg Score</th><th>Verified</th><th>Public</th><th>Joined</th>
+          </tr>
+        </thead>
+        <tbody id="usersTable">
+          <tr><td colspan="7"><div class="shimmer" style="height:40px;margin:8px"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Recent notes -->
+    <div class="section-title">Recent Notes (Last 20)</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>User</th><th>Note</th><th>Date</th></tr>
+        </thead>
+        <tbody id="notesTable">
+          <tr><td colspan="3"><div class="shimmer" style="height:40px;margin:8px"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let _adminToken = sessionStorage.getItem('cw_admin_token');
+if (_adminToken) showDashboard();
+
+async function doAdminLogin() {
+  const pass = document.getElementById('adminPass').value;
+  const err  = document.getElementById('loginErr');
+  err.style.display = 'none';
+  try {
+    const res  = await fetch('/admin/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pass})
+    });
+    const data = await res.json();
+    if (!res.ok) { err.style.display = 'block'; return; }
+    _adminToken = data.token;
+    sessionStorage.setItem('cw_admin_token', _adminToken);
+    showDashboard();
+  } catch(e) { err.style.display = 'block'; }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('cw_admin_token');
+  location.reload();
+}
+
+function showDashboard() {
+  document.getElementById('loginGate').style.display  = 'none';
+  document.getElementById('dashboard').style.display  = 'block';
+  loadStats();
+  loadUsers();
+  loadNotes();
+}
+
+async function adminFetch(url) {
+  return fetch(url, { headers: { 'X-Admin-Token': _adminToken } });
+}
+
+async function loadStats() {
+  try {
+    const res  = await adminFetch('/admin/stats');
+    const data = await res.json();
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card blue fade-in">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-val">${data.total_users}</div>
+        <div class="stat-sub">registered accounts</div>
+      </div>
+      <div class="stat-card teal fade-in">
+        <div class="stat-label">Total Notes</div>
+        <div class="stat-val">${data.total_notes}</div>
+        <div class="stat-sub">entries logged</div>
+      </div>
+      <div class="stat-card gold fade-in">
+        <div class="stat-label">Avg Score</div>
+        <div class="stat-val">${data.avg_score ?? '—'}</div>
+        <div class="stat-sub">across all users</div>
+      </div>
+      <div class="stat-card red fade-in">
+        <div class="stat-label">Notes Today</div>
+        <div class="stat-val">${data.notes_today}</div>
+        <div class="stat-sub">${new Date().toLocaleDateString()}</div>
+      </div>
+    `;
+  } catch(e) {}
+}
+
+async function loadUsers() {
+  try {
+    const res   = await adminFetch('/admin/users');
+    const users = await res.json();
+    document.getElementById('usersTable').innerHTML = users.map(u => `
+      <tr>
+        <td style="color:var(--muted)">#${u.id}</td>
+        <td>${u.email}</td>
+        <td>${u.notes_count}</td>
+        <td>
+          ${u.avg_score ?? '—'}
+          ${u.avg_score ? `<span class="score-bar-wrap"><span class="score-bar" style="width:${u.avg_score}%"></span></span>` : ''}
+        </td>
+        <td><span class="pill ${u.is_verified ? 'pill-green':'pill-red'}">${u.is_verified ? '✓ Yes':'✗ No'}</span></td>
+        <td><span class="pill ${u.is_public ? 'pill-blue':'pill-red'}">${u.is_public ? 'Public':'Private'}</span></td>
+        <td style="color:var(--muted);font-size:11px">${u.joined}</td>
+      </tr>
+    `).join('');
+  } catch(e) {}
+}
+
+async function loadNotes() {
+  try {
+    const res   = await adminFetch('/admin/notes');
+    const notes = await res.json();
+    document.getElementById('notesTable').innerHTML = notes.map(n => `
+      <tr>
+        <td style="color:var(--muted);font-size:11px">${n.email}</td>
+        <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.text}</td>
+        <td style="color:var(--muted);font-size:11px;white-space:nowrap">${n.date}</td>
+      </tr>
+    `).join('');
+  } catch(e) {}
+}
+</script>
+</body>
+</html>

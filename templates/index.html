@@ -728,6 +728,52 @@ body::after {
   .logo-ver { display: none; }
   .sim-result-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Forecast card ── */
+.forecast-card {
+  background: var(--neo-surface, rgba(255,255,255,0.03));
+  border: 1px solid var(--rim, rgba(255,255,255,0.07));
+  border-radius: 16px; padding: 22px; margin-top: 16px;
+}
+.forecast-title {
+  font-family: var(--mono, monospace); font-size: 10px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--t3, #4a6480); margin-bottom: 14px;
+}
+.forecast-row { display: flex; gap: 10px; }
+.forecast-day {
+  flex: 1; background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 14px 10px; text-align: center;
+}
+.forecast-date { font-size: 10px; color: var(--t3, #4a6480); margin-bottom: 6px; font-family: var(--mono,monospace); }
+.forecast-score { font-size: 22px; font-weight: 700; color: #fff; }
+.forecast-bar-wrap { height: 3px; background: rgba(255,255,255,0.06); border-radius: 3px; margin-top: 8px; }
+.forecast-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#3b9eff,#00e5c0); transition: width 1s ease; }
+.forecast-confidence { font-size: 10px; color: var(--t3,#4a6480); margin-top: 10px; text-align:center; font-family:var(--mono,monospace); }
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .nav-inner { padding: 0 14px !important; }
+  .nav-right { gap: 6px !important; }
+  .btn { padding: 8px 10px !important; font-size: 11px !important; }
+  .metrics-grid { grid-template-columns: 1fr 1fr !important; }
+  .main-grid { grid-template-columns: 1fr !important; }
+  .wrap, .dashboard-wrap { padding: 12px !important; }
+  .note-input-row { flex-direction: column !important; }
+  .note-input-row button { width: 100% !important; }
+  .report-panel { font-size: 11px !important; }
+  .forecast-row { flex-direction: column !important; }
+  .forecast-day { display: flex; align-items: center; justify-content: space-between; }
+  .forecast-score { font-size: 18px !important; }
+  .modal-box { margin: 12px !important; padding: 24px !important; }
+  h1, .hero-title { font-size: 22px !important; }
+}
+@media (max-width: 400px) {
+  .metrics-grid { grid-template-columns: 1fr !important; }
+  .stat-val, .metric-val { font-size: 28px !important; }
+}
+
 </style>
 </head>
 <body>
@@ -1444,6 +1490,42 @@ async function exportPDF() {
     btn.textContent = '⬇ Export PDF';
   }
 }
+
+
+// ── Behavioral Forecast ───────────────────────────────────────────────────
+async function loadForecast() {
+  try {
+    const token = localStorage.getItem('cw_token');
+    const res   = await fetch('/forecast', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!data.predictions) return;
+
+    const card = document.getElementById('forecastCard');
+    const row  = document.getElementById('forecastRow');
+    const conf = document.getElementById('forecastConf');
+    if (!card) return;
+
+    card.style.display = 'block';
+    row.innerHTML = data.predictions.map(p => `
+      <div class="forecast-day">
+        <div class="forecast-date">${p.date}</div>
+        <div class="forecast-score">${p.score ?? '—'}</div>
+        <div class="forecast-bar-wrap">
+          <div class="forecast-bar" style="width:${p.score ?? 0}%"></div>
+        </div>
+      </div>
+    `).join('');
+
+    conf.textContent = `Trend: ${data.trend} · Confidence: ${data.confidence} · Based on ${data.based_on_days} days`;
+  } catch(e) {}
+}
+
+// Load forecast when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('cw_token')) loadForecast();
+});
 
 </script>
 

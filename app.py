@@ -488,3 +488,210 @@ def export_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Rate Limiting + Email OTP + Password Reset + Admin + Forecasting
+# ══════════════════════════════════════════════════════════════════════════════
+
+import hashlib, secrets
+from rate_limiter import login_limiter, signup_limiter, otp_limiter, note_limiter, report_limiter
+from email_service import send_otp, verify_otp
+from forecasting_engine import forecast_scores
+from database import User, Note  # already imported above, fine
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "contextweave-admin-2026")
+ADMIN_TOKEN    = hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+class OTPRequest(BaseModel):
+    email: str
+
+class OTPVerify(BaseModel):
+    email: str
+    otp:   str
+
+class ResetPassword(BaseModel):
+    email:        str
+    otp:          str
+    new_password: str
+
+class AdminLogin(BaseModel):
+    password: str
+
+
+# ── Email Verification ────────────────────────────────────────────────────────
+
+@app.post("/send-verification")
+def send_verification(data: OTPRequest, request: Request, db: Session = Depends(get_db)):
+    otp_limiter.check(request)
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not registered")
+    if user.is_verified:
+        return {"message": "Email already verified"}
+    ok = send_otp(data.email, purpose="verify")
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Check GMAIL_USER and GMAIL_APP_PASS env vars.")
+    return {"message": "OTP sent to your email"}
+
+
+@app.post("/verify-email")
+def verify_email(data: OTPVerify, db: Session = Depends(get_db)):
+    if not verify_otp(data.email, data.otp):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_verified = True
+    db.commit()
+    return {"message": "Email verified successfully"}
+
+
+# ── Password Reset ────────────────────────────────────────────────────────────
+
+@app.post("/forgot-password")
+def forgot_password(data: OTPRequest, request: Request, db: Session = Depends(get_db)):
+    otp_limiter.check(request)
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If this email is registered, an OTP has been sent"}
+    ok = send_otp(data.email, purpose="reset")
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
+    return {"message": "If this email is registered, an OTP has been sent"}
+
+
+@app.post("/reset-password")
+def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
+    if not verify_otp(data.email, data.otp):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    from auth import hash_password
+    user.password_hash = hash_password(data.new_password)
+    db.commit()
+    return {"message": "Password reset successfully. Please log in."}
+
+
+# ── Rate-limited login/signup overrides ───────────────────────────────────────
+
+@app.post("/login/safe")
+def login_safe(data: LoginInput, request: Request, db: Session = Depends(get_db)):
+    login_limiter.check(request)
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_token(user.id)
+    return {"access_token": token, "token_type": "bearer", "is_verified": user.is_verified}
+
+
+# ── Behavioral Forecasting ────────────────────────────────────────────────────
+
+@app.get("/forecast")
+def get_forecast(
+    current_user: User = Depends(get_current_user),
+):
+    return forecast_scores(current_user.id, days_ahead=3)
+
+
+# ── Admin routes ──────────────────────────────────────────────────────────────
+
+def _check_admin(request: Request):
+    token = request.headers.get("X-Admin-Token", "")
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request):
+    return templates.TemplateResponse("admin_dashboard.html", {"request": request})
+
+@app.post("/admin/login")
+def admin_login(data: AdminLogin):
+    if data.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Wrong password")
+    return {"token": ADMIN_TOKEN}
+
+@app.get("/admin/stats")
+def admin_stats(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    from sqlalchemy import func
+    from datetime import date
+    total_users  = db.query(func.count(User.id)).scalar()
+    total_notes  = db.query(func.count(Note.id)).scalar()
+    today_str    = date.today().isoformat()
+    notes_today  = db.query(func.count(Note.id)).filter(
+        func.date(Note.created_at) == today_str
+    ).scalar()
+
+    # avg score across all users from their history files
+    scores = []
+    for uid in [u.id for u in db.query(User.id).all()]:
+        hf = f"behavior_history_{uid}.json"
+        if os.path.exists(hf):
+            try:
+                with open(hf) as f:
+                    h = json.load(f)
+                scores += [e["score"] for e in h if "score" in e]
+            except Exception:
+                pass
+    avg_score = round(sum(scores) / len(scores), 1) if scores else None
+
+    return {
+        "total_users": total_users,
+        "total_notes": total_notes,
+        "notes_today": notes_today,
+        "avg_score":   avg_score,
+    }
+
+@app.get("/admin/users")
+def admin_users(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    users = db.query(User).all()
+    result = []
+    for u in users:
+        notes_count = db.query(Note).filter(Note.user_id == u.id).count()
+        avg_score   = None
+        hf = f"behavior_history_{u.id}.json"
+        if os.path.exists(hf):
+            try:
+                with open(hf) as f:
+                    h = json.load(f)
+                sc = [e["score"] for e in h if "score" in e]
+                if sc: avg_score = round(sum(sc)/len(sc), 1)
+            except Exception:
+                pass
+        result.append({
+            "id":          u.id,
+            "email":       u.email,
+            "notes_count": notes_count,
+            "avg_score":   avg_score,
+            "is_verified": getattr(u, "is_verified", False),
+            "is_public":   getattr(u, "is_public", False),
+            "joined":      "—",
+        })
+    return result
+
+@app.get("/admin/notes")
+def admin_notes(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    notes = (
+        db.query(Note, User.email)
+        .join(User, Note.user_id == User.id)
+        .order_by(Note.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "email": email,
+            "text":  note.text[:120] + ("…" if len(note.text) > 120 else ""),
+            "date":  note.created_at.strftime("%Y-%m-%d %H:%M"),
+        }
+        for note, email in notes
+    ]

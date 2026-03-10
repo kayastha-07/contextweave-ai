@@ -284,6 +284,15 @@ body::after {
 }
 .btn-share:hover { box-shadow: 0 6px 32px rgba(0,229,192,0.4); transform: translateY(-1px); }
 .btn-share.private { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #5a7090; box-shadow: none; }
+.btn-export {
+  background: linear-gradient(135deg, rgba(245,200,66,0.15), rgba(245,200,66,0.08));
+  border: 1px solid rgba(245,200,66,0.35);
+  color: #f5c842;
+  box-shadow: 0 4px 18px rgba(245,200,66,0.12);
+}
+.btn-export:hover { box-shadow: 0 6px 32px rgba(245,200,66,0.35); transform: translateY(-1px); }
+.btn-export:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
 
 /* Share modal */
 .modal-overlay {
@@ -735,6 +744,7 @@ body::after {
     <div class="nav-right">
       <button class="btn btn-report" onclick="getReport()">⚡ Generate Report</button>
       <button class="btn btn-share btn-outline private" id="shareBtn" onclick="openShareModal()">🔗 Share Profile</button>
+      <button class="btn btn-export" id="exportBtn" onclick="exportPDF()">⬇ Export PDF</button>
       <button class="btn btn-outline" onclick="logout()" style="padding:9px 16px;font-size:12px;">Sign Out</button>
     </div>
   </div>
@@ -1404,6 +1414,35 @@ function apiFetch(url, opts = {}) {
     ...opts,
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
   });
+}
+
+
+// ── Export PDF ────────────────────────────────────────────────────────────
+async function exportPDF() {
+  const btn = document.getElementById('exportBtn');
+  btn.disabled  = true;
+  btn.textContent = '⏳ Generating...';
+  try {
+    const token = localStorage.getItem('cw_token');
+    const res   = await fetch('/export-pdf', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const blob     = await res.blob();
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = 'contextweave_report_' + new Date().toISOString().slice(0,10) + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Export failed — make sure you have notes logged first.');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '⬇ Export PDF';
+  }
 }
 
 </script>

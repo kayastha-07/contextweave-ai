@@ -401,3 +401,90 @@ def toggle_public(
         "is_public":   current_user.is_public,
         "profile_url": f"/profile/{current_user.id}",
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PDF Export
+# ══════════════════════════════════════════════════════════════════════════════
+
+from fastapi.responses import Response as FastAPIResponse
+from pdf_engine import generate_report_pdf
+from profile_engine import build_behavioral_dna
+
+@app.get("/export-pdf")
+def export_pdf(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate and return a behavioral report PDF for download."""
+
+    # Load notes
+    db_notes = (
+        db.query(Note)
+        .filter(Note.user_id == current_user.id)
+        .order_by(Note.created_at)
+        .all()
+    )
+    notes = [f"[{n.created_at.strftime('%Y-%m-%d')}] {n.text}" for n in db_notes]
+
+    # Run report pipeline (reuse existing logic)
+    from main import (
+        clean_notes, get_today_notes, run_behavioral_ai,
+        build_note_records, detect_stall, detect_semantic_stall,
+        summarize_notes, generate_priority, detect_patterns,
+        recent_focus, predict_pressure, detect_intent,
+        get_behavior_profile, generate_suggestion,
+        generate_weekly_insight, discover_behavior_patterns,
+    )
+    from insight_engine import generate_insights
+    from behavior_pattern_engine import discover_behavior_patterns as dbp
+
+    today_notes   = clean_notes(get_today_notes(notes))
+    ai            = run_behavioral_ai(today_notes)
+    all_records   = build_note_records(notes)
+    summary       = summarize_notes(today_notes)
+    priority      = generate_priority(summary)
+    patterns_text = detect_patterns(today_notes)
+    recent        = recent_focus(today_notes)
+    pressure      = predict_pressure(today_notes)
+    intent        = detect_intent(today_notes)
+    stall         = detect_stall(notes)
+    sem_stall     = detect_semantic_stall(notes)
+    profile       = get_behavior_profile()
+    suggestion    = generate_suggestion(summary, priority, patterns_text, profile)
+    weekly        = generate_weekly_insight()
+    behavior_pats = dbp(all_records)
+    ai_insights   = generate_insights(all_records)
+
+    # Build report text
+    r  = "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    r += "       CONTEXTWEAVE — BEHAVIORAL INTELLIGENCE\n"
+    r += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    r += f"🎯 Cognitive Score       : {ai['score']}\n"
+    r += f"📈 Behavior Direction    : {ai['trajectory'].capitalize()}\n"
+    r += f"⚠  Dominant Risk         : {ai['risks'].capitalize()}\n"
+    r += f"🧭 Strategy Mode         : {ai['strategy']}\n"
+    r += f"🎯 Focus State           : {str(ai.get('focus_state','—')).capitalize()}\n"
+    r += f"💡 Focus Advice          : {ai.get('focus_advice','—')}\n"
+    r += f"💬 AI Guidance           : {ai.get('advice','—')}\n"
+    r += f"\n{weekly}\n"
+    r += f"\n📋 Context Summary\n{'─'*40}\n{summary}\n{priority}\n{recent}\n{pressure}\n{intent}\n{stall}\n{sem_stall}\n"
+    r += f"\n🔁 Behavioral Patterns Detected\n{'─'*40}\n"
+    for i, p in enumerate(behavior_pats, 1): r += f"  {i}. {p}\n"
+    r += f"\n🧠 AI Insights\n{'─'*40}\n"
+    for i, ins in enumerate(ai_insights, 1): r += f"  {i}. {ins}\n"
+    r += f"\n✅ Recommendations\n{'─'*40}\n  {suggestion}\n"
+    r += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+    # Build DNA
+    dna = build_behavioral_dna(current_user.id, notes)
+
+    # Generate PDF
+    pdf_bytes = generate_report_pdf(current_user.email, r, dna, len(db_notes))
+
+    filename = f"contextweave_report_{datetime.now().strftime('%Y%m%d')}.pdf"
+    return FastAPIResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

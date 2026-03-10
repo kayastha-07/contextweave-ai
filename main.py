@@ -7,9 +7,6 @@ from behavioral_engine import (
 from prediction_engine import predict_next_score
 from anomaly_engine import detect_behavior_anomaly
 from habit_engine import discover_behavior_patterns
-from behavior_forecaster import forecast_cognitive_trajectory, format_forecast_for_report
-from behavior_pattern_engine import discover_behavior_patterns
-from llm_signal_engine import analyze_note_with_gemini
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -18,7 +15,7 @@ try:
 except:
     model = None
     AI_AVAILABLE = False
-import spacy
+# spacy removed — replaced with pure-Python NLP (no C++ build dependencies)
 from datetime import datetime
 
 import json
@@ -122,9 +119,10 @@ def run_behavioral_ai(notes):
     # Build records
     records_dict = build_note_records(notes)
 
-    # Convert dictionaries → SimpleNamespace objects so engine can use r.date
+    # Convert dictionaries → objects so engine can use r.date
     from types import SimpleNamespace
     records = []
+
     for r in records_dict:
         if isinstance(r, dict):
             records.append(SimpleNamespace(**r))
@@ -133,11 +131,11 @@ def run_behavioral_ai(notes):
 
     cognitive_score = calculate_cognitive_score(notes)
 
-    tracker          = BehavioralTrajectoryTracker()
+    tracker = BehavioralTrajectoryTracker()
     trajectory_result = tracker.analyse(records)
 
-    risk_model   = PredictiveRiskModel()
-    risk_result  = risk_model.analyse(records)
+    risk_model = PredictiveRiskModel()
+    risk_result = risk_model.analyse(records)
 
     strategy_engine = AIStrategyEngine()
     strategy_result = strategy_engine.select_mode(
@@ -159,48 +157,98 @@ def run_behavioral_ai(notes):
     dominant_risk = risk_result.get("dominant_risk", "none")
 
     advice = "Maintain systems — consistency is working."
+
     if dominant_risk == "burnout":
         advice = "Prioritize recovery before performance."
+
     elif dominant_risk == "procrastination":
         advice = "Reduce distractions and enforce focus blocks."
 
     if cognitive_score > 70:
-        focus_state  = "Deep Work"
+        focus_state = "Deep Work"
         focus_advice = "Excellent focus. Maintain current routine."
+
     elif cognitive_score > 40:
-        focus_state  = "Moderate Focus"
+        focus_state = "Moderate Focus"
         focus_advice = "Some distraction detected. Try shorter focus cycles."
+
     else:
-        focus_state  = "Low Focus"
+        focus_state = "Low Focus"
         focus_advice = "High distraction risk. Remove interruptions."
 
-    # ── NEW: rich pattern detection ───────────────────────────────────────────
-    # discover_behavior_patterns accepts the raw dict records directly
-    detected_patterns = discover_behavior_patterns(records_dict)
-
-    # ── Forecast (from behavior_forecaster, added in previous session) ────────
-    try:
-        forecast = forecast_cognitive_trajectory()
-    except Exception:
-        forecast = None
+    patterns = discover_behavior_patterns()
 
     return {
-        "score":           cognitive_score,
-        "trajectory":      trajectory_result.get("trajectory", "stable"),
-        "strategy":        strategy_result.get("mode", "observe"),
-        "risks":           dominant_risk,
+        "score": cognitive_score,
+        "trajectory": trajectory_result.get("trajectory", "stable"),
+        "strategy": strategy_result.get("mode", "observe"),
+        "risks": dominant_risk,
         "strategy_reason": strategy_result.get("rationale", "No reasoning"),
-        "weekly":          "stable",
-        "advice":          advice,
-        "prediction":      prediction,
-        "anomaly":         anomaly,
-        "focus_state":     focus_state,
-        "focus_advice":    focus_advice,
-        "patterns":        detected_patterns,   # ← now a list[str]
-        "forecast":        forecast,
+        "weekly": "stable",
+        "advice": advice,
+        "prediction": prediction,
+        "anomaly": anomaly,
+        "focus_state": focus_state,
+        "focus_advice": focus_advice,
+        "patterns": patterns
     }
 
-nlp = spacy.load("en_core_web_sm")
+# ── Pure-Python NLP replacement (no spaCy / no C++ build deps) ──────────────
+import re as _re
+
+# Common English stopwords (replaces spaCy's is_stop)
+_STOPWORDS = {
+    "i","me","my","myself","we","our","ours","ourselves","you","your","yours",
+    "yourself","he","him","his","himself","she","her","hers","herself","it",
+    "its","itself","they","them","their","theirs","themselves","what","which",
+    "who","whom","this","that","these","those","am","is","are","was","were",
+    "be","been","being","have","has","had","having","do","does","did","doing",
+    "a","an","the","and","but","if","or","because","as","until","while","of",
+    "at","by","for","with","about","against","between","into","through","during",
+    "before","after","above","below","to","from","up","down","in","out","on",
+    "off","over","under","again","further","then","once","here","there","when",
+    "where","why","how","all","both","each","few","more","most","other","some",
+    "such","no","nor","not","only","own","same","so","than","too","very","s",
+    "t","can","will","just","don","should","now","d","ll","m","o","re","ve",
+    "y","ain","aren","couldn","didn","doesn","hadn","hasn","haven","isn","ma",
+    "mightn","mustn","needn","shan","shouldn","wasn","weren","won","wouldn",
+}
+
+# Common English verbs (intent detection)
+_VERB_ROOTS = {
+    "plan","delay","decide","start","finish","complete","submit","study",
+    "work","meet","review","check","write","read","prepare","attend",
+    "cancel","skip","postpone","focus","rest","exercise","call","send",
+}
+
+# Common name patterns — simple heuristic (Capitalised word not at start of sentence)
+def _extract_people(text):
+    words = text.split()
+    people = []
+    for i, w in enumerate(words):
+        clean = w.strip(".,!?;:")
+        if (i > 0 and clean and clean[0].isupper()
+                and clean.lower() not in _STOPWORDS
+                and len(clean) > 2
+                and not clean.isupper()):   # skip ALL-CAPS acronyms
+            people.append(clean)
+    return list(set(people))
+
+def _tokenize(text):
+    """Return lowercase word tokens, no punctuation."""
+    return [w.lower() for w in _re.findall(r"[a-zA-Z']+", text) if len(w) > 1]
+
+def _lemma(word):
+    """Tiny rule-based lemmatizer covering common English inflections."""
+    w = word.lower()
+    for suffix, replacement in [
+        ("ying","y"),("ied","y"),("ies","y"),
+        ("ing",""),("ed",""),("er",""),("est",""),("ly",""),
+        ("tion","t"),("ness",""),("ment",""),("ful",""),("less",""),
+    ]:
+        if w.endswith(suffix) and len(w) - len(suffix) > 2:
+            return w[:-len(suffix)] + replacement
+    return w
 
 from behavioral_engine import (
     NoteRecord,
@@ -251,22 +299,25 @@ def summarize_notes(notes):
     tasks = []
     all_people = []
 
+    time_keywords = ["today","tomorrow","monday","tuesday","wednesday","thursday",
+                     "friday","saturday","sunday","morning","evening","night",
+                     "week","month","deadline","hour","minutes"]
+
     for note in notes:
-        doc = nlp(note)
+        # People (capitalised word heuristic)
+        all_people.extend(extract_people(note))
 
-        # Extract real people only
-        people = extract_people(doc)
-        all_people.extend(people)
+        # Timeline keywords
+        note_lower = note.lower()
+        for kw in time_keywords:
+            if kw in note_lower:
+                urgency.append(kw)
 
-        # Extract timelines
-        for ent in doc.ents:
-            if ent.label_ in ["DATE", "TIME"]:
-                urgency.append(ent.text)
-
-        # Extract meaningful actions
-        for token in doc:
-            if token.pos_ == "VERB" and not token.is_stop:
-                tasks.append(token.lemma_)
+        # Action verbs
+        for word in _tokenize(note):
+            lemma = _lemma(word)
+            if lemma in _VERB_ROOTS and word not in _STOPWORDS:
+                tasks.append(lemma)
 
     insight = []
 
@@ -308,22 +359,13 @@ def detect_patterns(notes):
     word_count = {}
 
     for note in notes:
-        doc = nlp(note)
+        for word in _tokenize(note):
+            if word not in _STOPWORDS and len(word) > 2:
+                lemma = _lemma(word)
+                word_count[lemma] = word_count.get(lemma, 0) + 1
 
-        for token in doc:
-            if (
-                token.pos_ in ["NOUN", "PROPN", "VERB"]
-                and not token.is_stop
-                and not token.is_punct
-                and len(token.text) > 2
-            ):
-                word = token.lemma_.lower()
-
-                if word not in word_count:
-                    word_count[word] = 0
-                word_count[word] += 1
-
-    repeated = [word for word, count in word_count.items() if count > 2]
+    repeated = [word for word, count in sorted(word_count.items(),
+                key=lambda x: -x[1]) if count > 2]
 
     if repeated:
         return "🔁 Repeated focus areas: " + ", ".join(repeated[:5])
@@ -460,12 +502,19 @@ def get_behavior_profile():
     
 def detect_intent(notes):
     intents = {"plan":0, "delay":0, "decide":0, "start":0, "finish":0}
-
+    intent_variants = {
+        "plan":   ["plan","plans","planned","planning"],
+        "delay":  ["delay","delays","delayed","delaying","postpone","postponed"],
+        "decide": ["decide","decided","deciding","decision"],
+        "start":  ["start","starts","started","starting","begin","began","beginning"],
+        "finish": ["finish","finished","finishing","complete","completed","done"],
+    }
     for note in notes:
-        doc = nlp(note)
-        for token in doc:
-            if token.lemma_ in intents and token.pos_ == "VERB":
-                intents[token.lemma_] += 1
+        words = _tokenize(note)
+        for intent, variants in intent_variants.items():
+            for word in words:
+                if word in variants:
+                    intents[intent] += 1
 
     active = [k for k,v in intents.items() if v > 0]
 
@@ -728,26 +777,33 @@ def build_note_records(notes):
 
     for note in notes:
 
-        # Extract date from stored format: [YYYY-MM-DD] text
+        # Extract date from your stored note format
+        # Example: [2026-03-03] Study ML
         try:
             date_part = note.split("]")[0].replace("[", "")
             note_date = datetime.strptime(date_part, "%Y-%m-%d").date()
-            note_text = note.split("]", 1)[1].strip()
         except:
             note_date = datetime.today().date()
-            note_text = note.strip()
 
-        # LLM signal extraction (falls back to keywords if Gemini unavailable)
-        signals = analyze_note_with_gemini(note_text)
+        # Simple signal extraction (can upgrade later)
+        text = note.lower()
+
+        action_words = ["start", "finish", "submit", "complete", "study", "prepare"]
+        delay_words = ["later", "tomorrow", "soon", "after"]
+        stress_words = ["deadline", "exam", "urgent", "pressure"]
+
+        action_count = sum(word in text for word in action_words)
+        delay_count = sum(word in text for word in delay_words)
+        stress_signals = sum(word in text for word in stress_words)
 
         record = NoteRecord(
-            date            = note_date,
-            cognitive_score = signals["cognitive_score"],
-            action_count    = signals["action_count"],
-            delay_count     = signals["delay_count"],
-            stress_signals  = signals["stress_signals"],
-            themes          = signals.get("themes", []),
-            raw_text        = note
+            date=note_date,
+            cognitive_score=calculate_cognitive_score([note]),
+            action_count=action_count,
+            delay_count=delay_count,
+            stress_signals=stress_signals,
+            themes=[],
+            raw_text=note
         )
 
         records.append(record)
@@ -861,54 +917,43 @@ def clean_notes(notes):
     return cleaned
 
 from datetime import datetime
-from behavioral_engine import NoteRecord
-
 
 def build_note_records(notes):
-    """
-    Convert raw note strings into NoteRecord objects.
 
-    Signal extraction is now handled by analyze_note_with_gemini().
-    If Gemini is unavailable the function falls back to keyword scoring
-    automatically — the rest of the pipeline never knows the difference.
-
-    Expected note format:  "[YYYY-MM-DD] note text here"
-
-    Returns: list[NoteRecord]
-    Consumed by: BehavioralTrajectoryTracker, PredictiveRiskModel,
-                 AIStrategyEngine, BehaviorPatternEngine  (all unchanged)
-    """
     records = []
 
     for note in notes:
 
-        # ── Extract date ──────────────────────────────────────────────────────
+        # extract date from stored format: [YYYY-MM-DD] text
         try:
-            date_str    = note.split("]")[0].replace("[", "").strip()
+            date_str = note.split("]")[0].replace("[","")
             record_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            note_text   = note.split("]", 1)[1].strip()
-        except Exception:
+        except:
             record_date = datetime.now().date()
-            note_text   = note.strip()
 
-        # ── LLM signal extraction (auto-falls back to keywords on failure) ────
-        signals = analyze_note_with_gemini(note_text)
+        # basic behavior signals
+        delay_words = ["later", "tomorrow", "after", "soon"]
+        action_words = ["start", "finish", "submit", "complete", "prepare"]
+        stress_words = ["urgent", "pressure", "deadline", "exam"]
 
-        # ── Build NoteRecord — same contract as before ────────────────────────
-        records.append(
-            NoteRecord(
-                date            = record_date,
-                cognitive_score = signals["cognitive_score"],
-                action_count    = signals["action_count"],
-                delay_count     = signals["delay_count"],
-                stress_signals  = signals["stress_signals"],
-                themes          = signals.get("themes", []),
-                raw_text        = note,
-            )
-        )
+        delay = sum(word in note.lower() for word in delay_words)
+        action = sum(word in note.lower() for word in action_words)
+        stress = sum(word in note.lower() for word in stress_words)
+
+        cognitive = 50 + (action * 5) - (delay * 4) - (stress * 3)
+        cognitive = max(0, min(100, cognitive))
+
+        records.append({
+            "date": record_date,
+            "cognitive_score": cognitive,
+            "action_count": action,
+            "delay_count": delay,
+            "stress_signals": stress,
+            "themes": [],
+            "raw_text": note
+        })
 
     return records
-
 
 def calculate_cognitive_score(notes):
 

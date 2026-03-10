@@ -282,14 +282,11 @@ def read_notes():
     except FileNotFoundError:
         return []
     
-def extract_people(doc):
-    people = []
-
-    for ent in doc.ents:
-        if ent.label_ == "PERSON":
-            people.append(ent.text)
-
-    return list(set(people))
+def extract_people(text):
+    """Extract likely person names using capitalisation heuristic."""
+    if not isinstance(text, str):
+        text = str(text)
+    return _extract_people(text)
 
 def summarize_notes(notes):
     if not notes:

@@ -335,3 +335,69 @@ def _save_user_behavior_state(user_id: int, ai_output: dict):
 
     with open(file_path, "w") as f:
         json.dump(history, f, indent=2)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Public Profile routes
+# ══════════════════════════════════════════════════════════════════════════════
+
+from profile_engine import build_behavioral_dna
+
+@app.get("/profile/{user_id}", response_class=HTMLResponse)
+def public_profile_page(user_id: int, request: Request):
+    """Serve the public profile HTML page."""
+    return templates.TemplateResponse("profile.html", {"request": request})
+
+
+@app.get("/api/profile/{user_id}")
+def get_profile_data(user_id: int, db: Session = Depends(get_db)):
+    """Return public profile JSON data."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_public:
+        return {"is_public": False}
+
+    # Load notes
+    db_notes = (
+        db.query(Note)
+        .filter(Note.user_id == user_id)
+        .order_by(Note.created_at)
+        .all()
+    )
+    notes = [f"[{n.created_at.strftime('%Y-%m-%d')}] {n.text}" for n in db_notes]
+
+    dna = build_behavioral_dna(user_id, notes)
+
+    return {
+        "is_public":      True,
+        "email":          user.email,
+        "behavioral_dna": dna,
+    }
+
+
+@app.get("/me")
+def get_me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return current user's id and public status."""
+    return {
+        "id":        current_user.id,
+        "email":     current_user.email,
+        "is_public": current_user.is_public,
+    }
+
+
+@app.post("/toggle-public")
+def toggle_public(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Toggle the user's profile between public and private."""
+    current_user.is_public = not current_user.is_public
+    db.commit()
+    return {
+        "is_public":   current_user.is_public,
+        "profile_url": f"/profile/{current_user.id}",
+    }

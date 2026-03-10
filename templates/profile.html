@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContextWeave — Behavioral Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:      #04080f;
+  --card:    rgba(255,255,255,0.03);
+  --border:  rgba(255,255,255,0.06);
+  --hi:      rgba(59,158,255,0.15);
+  --text:    #dde8f5;
+  --muted:   #4a6480;
+  --accent:  #3b9eff;
+  --accent2: #00e5c0;
+  --gold:    #f5c842;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Syne', sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── grid bg ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(59,158,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,158,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(120px); pointer-events: none; z-index: 0;
+}
+.b1 { width:600px;height:600px;background:rgba(59,158,255,0.05);top:-200px;left:-150px; }
+.b2 { width:500px;height:500px;background:rgba(0,229,192,0.04);bottom:-100px;right:-100px; }
+
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+/* ── header ── */
+.header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 48px;
+  animation: rise 0.6s ease both;
+}
+
+.logo-mark {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 20px;
+  box-shadow: 0 0 30px rgba(59,158,255,0.2);
+  flex-shrink: 0;
+}
+
+.brand { font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+/* ── profile hero ── */
+.profile-hero {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px;
+  margin-bottom: 24px;
+  position: relative; overflow: hidden;
+  animation: rise 0.6s 0.1s ease both;
+}
+
+.profile-hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+}
+
+.profile-top {
+  display: flex; align-items: flex-start; gap: 20px;
+  margin-bottom: 28px;
+}
+
+.avatar {
+  width: 64px; height: 64px; border-radius: 16px;
+  background: linear-gradient(135deg, rgba(59,158,255,0.2), rgba(0,229,192,0.2));
+  border: 1px solid rgba(59,158,255,0.2);
+  display: grid; place-items: center;
+  font-size: 28px; flex-shrink: 0;
+}
+
+.profile-meta { flex: 1; }
+
+.profile-email {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+
+.profile-handle {
+  font-size: 26px; font-weight: 800;
+  color: #fff; line-height: 1.1; margin-bottom: 8px;
+}
+
+.badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: 1px solid;
+}
+
+.badge-blue  { background:rgba(59,158,255,0.1);  border-color:rgba(59,158,255,0.3);  color:var(--accent); }
+.badge-teal  { background:rgba(0,229,192,0.1);   border-color:rgba(0,229,192,0.3);   color:var(--accent2); }
+.badge-gold  { background:rgba(245,200,66,0.1);  border-color:rgba(245,200,66,0.3);  color:var(--gold); }
+
+.privacy-toggle {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px;
+}
+
+.toggle-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+.toggle {
+  width: 40px; height: 22px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  position: relative; cursor: pointer;
+  transition: background 0.3s;
+}
+
+.toggle.on { background: rgba(0,229,192,0.25); border-color: rgba(0,229,192,0.4); }
+
+.toggle::after {
+  content: '';
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.3s, background 0.3s;
+}
+
+.toggle.on::after { transform: translateX(18px); background: var(--accent2); }
+
+/* ── DNA section ── */
+.dna-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media(max-width:520px){ .dna-grid { grid-template-columns: 1fr; } }
+
+.dna-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.dna-card:hover { border-color: rgba(59,158,255,0.2); }
+
+.dna-card::after {
+  content: attr(data-glyph);
+  position: absolute; bottom: -8px; right: 8px;
+  font-size: 48px; opacity: 0.05; pointer-events: none;
+  font-family: var(--mono);
+}
+
+.dna-label {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+
+.dna-value {
+  font-size: 22px; font-weight: 800; color: #fff;
+  line-height: 1.1; margin-bottom: 4px;
+}
+
+.dna-sub { font-size: 12px; color: var(--muted); }
+
+/* bar */
+.dna-bar-wrap {
+  margin-top: 10px; height: 3px;
+  background: rgba(255,255,255,0.05); border-radius: 3px; overflow:hidden;
+}
+.dna-bar {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width 1s ease;
+}
+
+/* ── archetype ── */
+.archetype-block {
+  background: linear-gradient(135deg, rgba(59,158,255,0.06), rgba(0,229,192,0.04));
+  border: 1px solid rgba(59,158,255,0.15);
+  border-radius: 14px; padding: 20px;
+  margin-top: 12px; grid-column: 1/-1;
+}
+
+.arch-label {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+
+.arch-name {
+  font-size: 20px; font-weight: 800;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.arch-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* ── share section ── */
+.share-block {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px;
+  margin-top: 24px;
+  animation: rise 0.6s 0.3s ease both;
+}
+
+.share-title {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 14px;
+}
+
+.share-row {
+  display: flex; gap: 10px; align-items: center;
+}
+
+.share-url {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 14px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--accent); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+.btn-copy {
+  padding: 11px 20px;
+  background: rgba(59,158,255,0.12);
+  border: 1px solid rgba(59,158,255,0.3);
+  border-radius: 10px; color: var(--accent);
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 1px; cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.btn-copy:hover { background: rgba(59,158,255,0.2); }
+.btn-copy.copied { color: var(--accent2); border-color: rgba(0,229,192,0.3); }
+
+/* ── private overlay ── */
+.private-overlay {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 60px 40px;
+  text-align: center; margin-bottom: 24px;
+  animation: rise 0.5s ease both;
+}
+
+.lock-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+.private-title { font-size: 22px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.private-sub { font-size: 14px; color: var(--muted); opacity: 0.6; }
+
+/* ── loading ── */
+.shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── footer ── */
+.footer {
+  text-align: center; margin-top: 48px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted); letter-spacing: 1px;
+}
+
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+@keyframes rise {
+  from { opacity:0; transform:translateY(20px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+
+<div class="wrap">
+
+  <!-- header -->
+  <div class="header">
+    <div class="logo-mark">🧠</div>
+    <div>
+      <div class="brand">ContextWeave</div>
+    </div>
+  </div>
+
+  <!-- profile (shown when public) -->
+  <div id="profileSection" style="display:none">
+    <div class="profile-hero">
+      <div class="profile-top">
+        <div class="avatar" id="avatarEmoji">🧠</div>
+        <div class="profile-meta">
+          <div class="profile-email" id="profileEmail">loading...</div>
+          <div class="profile-handle" id="profileHandle">Behavioral Profile</div>
+          <div class="badge-row" id="badgeRow"></div>
+        </div>
+      </div>
+
+      <!-- DNA Grid -->
+      <div class="dna-grid" id="dnaGrid">
+        <div class="shimmer" style="height:100px"></div>
+        <div class="shimmer" style="height:100px"></div>
+        <div class="shimmer" style="height:100px;grid-column:1/-1"></div>
+      </div>
+    </div>
+
+    <!-- share block (only for own profile) -->
+    <div class="share-block" id="shareBlock" style="display:none">
+      <div class="share-title">Your Public Link</div>
+      <div class="share-row">
+        <div class="share-url" id="shareUrl"></div>
+        <button class="btn-copy" onclick="copyLink()">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- private overlay -->
+  <div class="private-overlay" id="privateSection" style="display:none">
+    <div class="lock-icon">🔒</div>
+    <div class="private-title">This profile is private</div>
+    <div class="private-sub">The user hasn't made their profile public yet.</div>
+  </div>
+
+  <!-- loading -->
+  <div id="loadingSection">
+    <div class="profile-hero">
+      <div class="profile-top">
+        <div class="shimmer" style="width:64px;height:64px;border-radius:16px;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div class="shimmer" style="height:12px;width:120px;margin-bottom:10px"></div>
+          <div class="shimmer" style="height:28px;width:220px;margin-bottom:10px"></div>
+          <div class="shimmer" style="height:22px;width:160px"></div>
+        </div>
+      </div>
+      <div class="dna-grid">
+        <div class="shimmer" style="height:100px"></div>
+        <div class="shimmer" style="height:100px"></div>
+        <div class="shimmer" style="height:80px;grid-column:1/-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Powered by <a href="/">ContextWeave</a> — Behavioral Intelligence Platform
+  </div>
+</div>
+
+<script>
+const pathParts = window.location.pathname.split("/");
+const userId    = pathParts[pathParts.length - 1];
+
+async function loadProfile() {
+  try {
+    const res  = await fetch(`/api/profile/${userId}`);
+    const data = await res.json();
+
+    document.getElementById("loadingSection").style.display = "none";
+
+    if (!data.is_public) {
+      document.getElementById("privateSection").style.display = "block";
+      return;
+    }
+
+    renderProfile(data);
+    document.getElementById("profileSection").style.display = "block";
+
+    // show share block only if viewing own profile
+    const token = localStorage.getItem("cw_token");
+    if (token) {
+      try {
+        const me = await fetch("/me", { headers: { Authorization: "Bearer " + token } });
+        const meData = await me.json();
+        if (String(meData.id) === String(userId)) {
+          document.getElementById("shareBlock").style.display = "block";
+          document.getElementById("shareUrl").textContent = window.location.href;
+        }
+      } catch {}
+    }
+
+  } catch(e) {
+    document.getElementById("loadingSection").innerHTML =
+      `<div class="private-overlay"><div class="lock-icon">⚠️</div>
+       <div class="private-title">Profile not found</div></div>`;
+  }
+}
+
+function renderProfile(data) {
+  const dna = data.behavioral_dna;
+
+  // email / handle
+  document.getElementById("profileEmail").textContent = data.email || "Anonymous";
+  const handle = (data.email || "user").split("@")[0];
+  document.getElementById("profileHandle").textContent = handle;
+
+  // badges
+  const badgeRow = document.getElementById("badgeRow");
+  const badges = buildBadges(dna);
+  badgeRow.innerHTML = badges.map(b =>
+    `<span class="badge badge-${b.color}">${b.label}</span>`
+  ).join("");
+
+  // avatar emoji based on archetype
+  document.getElementById("avatarEmoji").textContent = dna.archetype_emoji || "🧠";
+
+  // DNA grid
+  document.getElementById("dnaGrid").innerHTML = `
+    <div class="dna-card" data-glyph="01">
+      <div class="dna-label">Cognitive Score</div>
+      <div class="dna-value">${dna.avg_score ?? "—"}</div>
+      <div class="dna-sub">7-day average</div>
+      <div class="dna-bar-wrap"><div class="dna-bar" style="width:${dna.avg_score ?? 0}%"></div></div>
+    </div>
+
+    <div class="dna-card" data-glyph="02">
+      <div class="dna-label">Behavior Pattern</div>
+      <div class="dna-value" style="font-size:16px">${dna.dominant_pattern ?? "—"}</div>
+      <div class="dna-sub">${dna.pattern_desc ?? ""}</div>
+    </div>
+
+    <div class="archetype-block" style="grid-column:1/-1">
+      <div class="arch-label">Behavioral Archetype</div>
+      <div class="arch-name">${dna.archetype ?? "Calculating..."}</div>
+      <div class="arch-desc">${dna.archetype_desc ?? "Keep logging notes to unlock your full behavioral DNA."}</div>
+    </div>
+  `;
+}
+
+function buildBadges(dna) {
+  const badges = [];
+  if (dna.streak >= 3)    badges.push({ label: `🔥 ${dna.streak}-day streak`, color: "gold" });
+  if (dna.top_trait)      badges.push({ label: dna.top_trait, color: "blue" });
+  if (dna.trend === "improving") badges.push({ label: "↑ Improving", color: "teal" });
+  if (dna.trend === "declining") badges.push({ label: "↓ Declining", color: "blue" });
+  return badges;
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.querySelector(".btn-copy");
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+  });
+}
+
+loadProfile();
+</script>
+</body>
+</html>

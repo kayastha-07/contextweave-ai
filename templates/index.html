@@ -276,6 +276,78 @@ body::after {
   align-self: flex-end;
 }
 .btn-sim:hover { box-shadow: 0 6px 36px rgba(176,126,250,0.5); transform: translateY(-1px); }
+.btn-share {
+  background: linear-gradient(135deg, rgba(0,229,192,0.15), rgba(0,229,192,0.08));
+  border: 1px solid rgba(0,229,192,0.35);
+  color: #00e5c0;
+  box-shadow: 0 4px 18px rgba(0,229,192,0.15);
+}
+.btn-share:hover { box-shadow: 0 6px 32px rgba(0,229,192,0.4); transform: translateY(-1px); }
+.btn-share.private { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #5a7090; box-shadow: none; }
+
+/* Share modal */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+  display: grid; place-items: center;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal-box {
+  background: #080f1a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 36px;
+  width: 100%; max-width: 440px; margin: 20px;
+  position: relative;
+  animation: rise 0.3s ease;
+}
+.modal-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.modal-sub { font-size: 13px; color: #4a6480; margin-bottom: 24px; }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; color: #4a6480;
+  font-size: 18px; cursor: pointer; padding: 4px 8px;
+}
+.modal-close:hover { color: #fff; }
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px; padding: 16px;
+  margin-bottom: 20px;
+}
+.toggle-info { font-size: 14px; color: #dde8f5; font-weight: 600; }
+.toggle-info small { display: block; font-size: 12px; color: #4a6480; font-weight: 400; margin-top: 3px; }
+.pill-toggle {
+  width: 48px; height: 26px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 13px; position: relative;
+  cursor: pointer; transition: background 0.3s, border-color 0.3s; flex-shrink: 0;
+}
+.pill-toggle.on { background: rgba(0,229,192,0.25); border-color: rgba(0,229,192,0.5); }
+.pill-toggle::after {
+  content: ''; position: absolute; top: 4px; left: 4px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #4a6480; transition: transform 0.3s, background 0.3s;
+}
+.pill-toggle.on::after { transform: translateX(22px); background: #00e5c0; }
+.profile-url-box {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 12px 14px;
+  font-family: 'Space Mono', monospace; font-size: 12px;
+  color: #3b9eff; margin-bottom: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: none;
+}
+.btn-copy-url {
+  width: 100%; padding: 12px;
+  background: rgba(0,229,192,0.1); border: 1px solid rgba(0,229,192,0.3);
+  border-radius: 10px; color: #00e5c0;
+  font-family: 'Space Mono', monospace; font-size: 12px;
+  cursor: pointer; transition: background 0.2s; display: none;
+}
+.btn-copy-url:hover { background: rgba(0,229,192,0.2); }
+
 
 /* ═══════════════════════════════════════════════════════════════
    SECTION LABEL
@@ -662,6 +734,7 @@ body::after {
     </a>
     <div class="nav-right">
       <button class="btn btn-report" onclick="getReport()">⚡ Generate Report</button>
+      <button class="btn btn-share btn-outline private" id="shareBtn" onclick="openShareModal()">🔗 Share Profile</button>
       <button class="btn btn-outline" onclick="logout()" style="padding:9px 16px;font-size:12px;">Sign Out</button>
     </div>
   </div>
@@ -1265,6 +1338,95 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") runSim();
   });
 });
+
+// ── Share Profile ─────────────────────────────────────────────────────────
+let _isPublic = false;
+let _profileUrl = '';
+
+async function openShareModal() {
+  const modal = document.getElementById('shareModal');
+  modal.style.display = 'grid';
+  try {
+    const res  = await apiFetch('/me');
+    const data = await res.json();
+    _isPublic = data.is_public;
+    _profileUrl = window.location.origin + '/profile/' + data.id;
+    updateShareModal();
+  } catch(e) {}
+}
+
+function updateShareModal() {
+  const toggle  = document.getElementById('publicToggle');
+  const urlBox  = document.getElementById('profileUrlBox');
+  const copyBtn = document.getElementById('copyUrlBtn');
+  const shareBtn = document.getElementById('shareBtn');
+
+  toggle.classList.toggle('on', _isPublic);
+  shareBtn.classList.toggle('private', !_isPublic);
+
+  if (_isPublic) {
+    urlBox.textContent    = _profileUrl;
+    urlBox.style.display  = 'block';
+    copyBtn.style.display = 'block';
+  } else {
+    urlBox.style.display  = 'none';
+    copyBtn.style.display = 'none';
+  }
+}
+
+async function togglePublic() {
+  try {
+    const res  = await apiFetch('/toggle-public', { method: 'POST' });
+    const data = await res.json();
+    _isPublic = data.is_public;
+    updateShareModal();
+  } catch(e) { console.error(e); }
+}
+
+function closeShareModal(e) {
+  if (e.target.id === 'shareModal') {
+    document.getElementById('shareModal').style.display = 'none';
+  }
+}
+
+function copyProfileUrl() {
+  navigator.clipboard.writeText(_profileUrl).then(() => {
+    const btn = document.getElementById('copyUrlBtn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy Link', 2000);
+  });
+}
+
+// helper: authenticated fetch
+function apiFetch(url, opts = {}) {
+  const token = localStorage.getItem('cw_token');
+  return fetch(url, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
+  });
+}
+
 </script>
+
+<!-- Share Profile Modal -->
+<div class="modal-overlay" id="shareModal" style="display:none" onclick="closeShareModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('shareModal').style.display='none'">✕</button>
+    <div class="modal-title">🔗 Public Profile</div>
+    <div class="modal-sub">Share your Behavioral DNA with the world.</div>
+
+    <div class="toggle-row">
+      <div class="toggle-info">
+        Make profile public
+        <small>Anyone with the link can view your behavioral summary</small>
+      </div>
+      <div class="pill-toggle" id="publicToggle" onclick="togglePublic()"></div>
+    </div>
+
+    <div class="profile-url-box" id="profileUrlBox"></div>
+    <button class="btn-copy-url" id="copyUrlBtn" onclick="copyProfileUrl()">Copy Link</button>
+  </div>
+</div>
+
 </body>
 </html>

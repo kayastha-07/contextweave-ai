@@ -722,3 +722,8 @@ def admin_notes(request: Request, db: Session = Depends(get_db)):
         }
         for note, email in notes
     ]
+
+
+@app.get("/", response_class=HTMLResponse)
+def root(request: Request):
+    return templates.TemplateResponse("landing.html", {"request": request})

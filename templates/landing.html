@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContextWeave — Behavioral Intelligence Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #04080f;
+  --ink:     #e8f0fa;
+  --dim:     #3a5070;
+  --faint:   rgba(255,255,255,0.04);
+  --rim:     rgba(255,255,255,0.07);
+  --blue:    #3b9eff;
+  --teal:    #00e5c0;
+  --gold:    #f5c842;
+  --red:     #ff4466;
+  --green:   #22d98a;
+  --syne:    'Syne', sans-serif;
+  --mono:    'DM Mono', monospace;
+  --serif:   'Instrument Serif', serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--syne);
+  background: var(--bg);
+  color: var(--ink);
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── Custom cursor ── */
+.cursor {
+  width: 10px; height: 10px;
+  background: var(--blue);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 9999;
+  transition: transform 0.15s ease, background 0.2s;
+  transform: translate(-50%, -50%);
+}
+.cursor-ring {
+  width: 36px; height: 36px;
+  border: 1px solid rgba(59,158,255,0.4);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 9998;
+  transform: translate(-50%, -50%);
+  transition: transform 0.4s cubic-bezier(0.23,1,0.32,1), opacity 0.3s;
+}
+
+/* ── Canvas noise overlay ── */
+#noise { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.03; }
+
+/* ── Grid lines ── */
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(59,158,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,158,255,0.04) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%);
+}
+
+/* ── Blobs ── */
+.blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(120px); pointer-events: none; z-index: 0;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.b1 { width: 600px; height: 600px; background: rgba(59,158,255,0.07); top: -200px; left: -150px; }
+.b2 { width: 500px; height: 500px; background: rgba(0,229,192,0.05); bottom: -100px; right: -100px; animation-delay: -9s; }
+.b3 { width: 300px; height: 300px; background: rgba(245,200,66,0.04); top: 40%; left: 40%; animation-delay: -4s; }
+
+@keyframes drift {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(40px, 30px) scale(1.1); }
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 64px;
+  display: flex; align-items: center;
+  padding: 0 5vw;
+  background: rgba(4,8,15,0.7);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--rim);
+}
+.nav-logo {
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  color: var(--blue); letter-spacing: 0.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo span { color: var(--ink); }
+.nav-links { display: flex; gap: 36px; margin-left: auto; margin-right: 36px; }
+.nav-links a {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--dim); text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-cta {
+  padding: 9px 22px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: var(--syne); font-size: 13px; font-weight: 600;
+  text-decoration: none; cursor: none;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.nav-cta:hover { box-shadow: 0 0 28px rgba(59,158,255,0.5); transform: translateY(-1px); }
+
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+}
+
+/* ── HERO ── */
+.hero {
+  position: relative; z-index: 2;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 120px 5vw 80px;
+  text-align: center;
+}
+
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px;
+  background: rgba(59,158,255,0.08);
+  border: 1px solid rgba(59,158,255,0.2);
+  border-radius: 100px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--blue);
+  margin-bottom: 36px;
+  animation: fadeUp 0.8s ease both;
+}
+.hero-tag::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--teal); border-radius: 50%;
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+.hero-title {
+  font-size: clamp(44px, 8vw, 96px);
+  font-weight: 800; line-height: 0.95;
+  letter-spacing: -3px;
+  margin-bottom: 12px;
+  animation: fadeUp 0.8s 0.1s ease both;
+}
+.hero-title em {
+  font-family: var(--serif); font-style: italic;
+  font-weight: 400; color: var(--teal);
+}
+.hero-sub {
+  font-size: clamp(15px, 2vw, 19px);
+  color: var(--dim); font-weight: 400;
+  max-width: 560px; line-height: 1.6;
+  margin: 20px auto 44px;
+  animation: fadeUp 0.8s 0.2s ease both;
+}
+
+.hero-btns {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  animation: fadeUp 0.8s 0.3s ease both;
+}
+.btn-primary {
+  padding: 15px 36px;
+  background: linear-gradient(135deg, var(--blue), #1a7de0);
+  color: #fff; border: none; border-radius: 10px;
+  font-family: var(--syne); font-size: 15px; font-weight: 700;
+  text-decoration: none; cursor: none;
+  transition: box-shadow 0.2s, transform 0.2s;
+  box-shadow: 0 8px 32px rgba(59,158,255,0.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59,158,255,0.5); }
+.btn-ghost {
+  padding: 15px 36px;
+  background: transparent;
+  color: var(--ink); border: 1px solid var(--rim);
+  border-radius: 10px;
+  font-family: var(--syne); font-size: 15px; font-weight: 600;
+  text-decoration: none; cursor: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { border-color: rgba(59,158,255,0.4); background: rgba(59,158,255,0.05); }
+
+/* ── Dashboard mockup ── */
+.hero-mockup {
+  position: relative; margin-top: 72px; width: 100%; max-width: 900px;
+  animation: fadeUp 0.8s 0.4s ease both;
+}
+.mockup-glow {
+  position: absolute; inset: -40px;
+  background: radial-gradient(ellipse at 50% 60%, rgba(59,158,255,0.15), transparent 70%);
+  pointer-events: none;
+}
+.mockup-frame {
+  background: rgba(8,14,24,0.9);
+  border: 1px solid rgba(59,158,255,0.2);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+}
+.mockup-bar {
+  height: 40px; background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--rim);
+  display: flex; align-items: center; padding: 0 16px; gap: 8px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.d1{background:#ff5f57} .d2{background:#febc2e} .d3{background:#28c840}
+.mockup-url {
+  margin-left: 12px; flex: 1;
+  background: rgba(255,255,255,0.04); border-radius: 6px;
+  height: 22px; max-width: 300px;
+  display: flex; align-items: center; padding: 0 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.mockup-body { padding: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.m-card {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--rim);
+  border-radius: 12px; padding: 18px;
+}
+.m-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+.m-val { font-size: 32px; font-weight: 800; }
+.m-bar-wrap { height: 3px; background: rgba(255,255,255,0.06); border-radius: 3px; margin-top: 10px; }
+.m-bar { height: 100%; border-radius: 3px; }
+.m-chart { grid-column: 1/-1; height: 80px; display: flex; align-items: flex-end; gap: 6px; padding-top: 12px; }
+.bar-item { flex: 1; border-radius: 4px 4px 0 0; opacity: 0.7; transition: opacity 0.2s; animation: growUp 1s ease both; }
+.bar-item:hover { opacity: 1; }
+@keyframes growUp { from{transform:scaleY(0);transform-origin:bottom} to{transform:scaleY(1);transform-origin:bottom} }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--rim);
+  border-bottom: 1px solid var(--rim);
+  display: flex; justify-content: center;
+  overflow: hidden;
+}
+.stats-inner {
+  display: flex; width: 100%; max-width: 1000px;
+  divide: var(--rim);
+}
+.stat-item {
+  flex: 1; padding: 32px 24px; text-align: center;
+  border-right: 1px solid var(--rim);
+  position: relative; overflow: hidden;
+  transition: background 0.3s;
+}
+.stat-item:last-child { border-right: none; }
+.stat-item:hover { background: rgba(59,158,255,0.04); }
+.stat-num {
+  font-size: 36px; font-weight: 800; line-height: 1;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-desc { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-top: 8px; }
+
+@media(max-width:600px){
+  .stats-inner{flex-wrap:wrap}
+  .stat-item{flex:50%;border-bottom:1px solid var(--rim)}
+}
+
+/* ── SECTIONS ── */
+section { position: relative; z-index: 2; padding: 100px 5vw; }
+
+.section-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--teal);
+  margin-bottom: 16px; display: block;
+}
+.section-title {
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 800; letter-spacing: -1.5px; line-height: 1.05;
+  max-width: 700px;
+}
+.section-title em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--blue); }
+.section-sub {
+  font-size: 16px; color: var(--dim); line-height: 1.7;
+  max-width: 500px; margin-top: 16px;
+}
+
+/* ── FEATURES ── */
+.features { max-width: 1100px; margin: 0 auto; }
+.features-header { margin-bottom: 64px; }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 20px; }
+
+.feat-card {
+  background: var(--faint); border: 1px solid var(--rim);
+  border-radius: 18px; padding: 32px;
+  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  position: relative; overflow: hidden;
+}
+.feat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-color,var(--blue)), transparent);
+  opacity: 0; transition: opacity 0.3s;
+}
+.feat-card:hover { transform: translateY(-4px); border-color: rgba(59,158,255,0.25); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.feat-card:hover::before { opacity: 1; }
+
+.feat-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; margin-bottom: 20px;
+}
+.feat-name { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.feat-desc { font-size: 14px; color: var(--dim); line-height: 1.65; }
+.feat-tag {
+  display: inline-block; margin-top: 16px;
+  padding: 4px 12px; border-radius: 100px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── HOW IT WORKS ── */
+.hiw { max-width: 1100px; margin: 0 auto; }
+.hiw-header { margin-bottom: 64px; }
+.hiw-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; position: relative; }
+.hiw-steps::before {
+  content: '';
+  position: absolute; top: 32px; left: 16.66%; right: 16.66%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  opacity: 0.3;
+}
+.step {
+  padding: 0 32px; text-align: center;
+  position: relative;
+}
+.step-num {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--bg); border: 1px solid rgba(59,158,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 13px; color: var(--blue);
+  margin: 0 auto 24px;
+  position: relative; z-index: 1;
+  box-shadow: 0 0 0 8px var(--bg);
+}
+.step-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+.step-desc { font-size: 14px; color: var(--dim); line-height: 1.65; }
+
+@media(max-width:640px) {
+  .hiw-steps { grid-template-columns: 1fr; gap: 40px; }
+  .hiw-steps::before { display: none; }
+}
+
+/* ── DNA PREVIEW ── */
+.dna-section { max-width: 1100px; margin: 0 auto; }
+.dna-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; margin-top: 64px; }
+.dna-cards { display: flex; flex-direction: column; gap: 14px; }
+.dna-card {
+  background: var(--faint); border: 1px solid var(--rim);
+  border-radius: 14px; padding: 20px 24px;
+  display: flex; align-items: center; gap: 16px;
+  transition: border-color 0.3s;
+}
+.dna-card:hover { border-color: rgba(0,229,192,0.3); }
+.dna-emoji { font-size: 28px; }
+.dna-info { flex: 1; }
+.dna-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.dna-val { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.dna-score {
+  font-family: var(--mono); font-size: 22px; font-weight: 500;
+  color: var(--teal);
+}
+.dna-text .section-sub { max-width: 400px; }
+.archetype-box {
+  background: linear-gradient(135deg, rgba(0,229,192,0.08), rgba(59,158,255,0.08));
+  border: 1px solid rgba(0,229,192,0.2);
+  border-radius: 16px; padding: 28px;
+  margin-top: 24px;
+}
+.arch-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+.arch-name { font-size: 22px; font-weight: 800; color: var(--teal); }
+.arch-desc { font-size: 13px; color: var(--dim); margin-top: 8px; line-height: 1.6; }
+
+@media(max-width:768px){ .dna-grid{grid-template-columns:1fr} }
+
+/* ── FINAL CTA ── */
+.cta-section {
+  max-width: 800px; margin: 0 auto;
+  text-align: center; padding: 120px 5vw;
+}
+.cta-box {
+  background: linear-gradient(135deg, rgba(59,158,255,0.08), rgba(0,229,192,0.06));
+  border: 1px solid rgba(59,158,255,0.2);
+  border-radius: 24px; padding: 72px 48px;
+  position: relative; overflow: hidden;
+}
+.cta-box::before {
+  content: ''; position: absolute;
+  top: -100px; left: 50%; transform: translateX(-50%);
+  width: 400px; height: 200px;
+  background: radial-gradient(ellipse, rgba(59,158,255,0.15), transparent 70%);
+}
+.cta-title {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 800; letter-spacing: -1.5px; line-height: 1.1;
+  margin-bottom: 16px; position: relative;
+}
+.cta-sub {
+  font-size: 16px; color: var(--dim); line-height: 1.6;
+  margin-bottom: 36px; position: relative;
+}
+.cta-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; position: relative; }
+
+/* ── FOOTER ── */
+footer {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--rim);
+  padding: 40px 5vw;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.footer-brand { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+.footer-brand strong { color: var(--blue); }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--ink); }
+.footer-credit { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+
+/* ── Scroll reveal ── */
+.reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.visible { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<canvas id="noise"></canvas>
+<div class="grid-bg"></div>
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="blob b3"></div>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">🧠 <span>ContextWeave</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">How it works</a>
+    <a href="#dna">Behavioral DNA</a>
+  </div>
+  <a href="/signup-page" class="nav-cta">Get Started Free</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-tag">AI-Powered Behavioral Intelligence</div>
+  <h1 class="hero-title">
+    Understand<br>
+    your <em>mind</em><br>
+    every day.
+  </h1>
+  <p class="hero-sub">
+    ContextWeave analyzes your daily notes and reveals hidden behavioral patterns, cognitive trends, and a 3-day forecast of your mental performance.
+  </p>
+  <div class="hero-btns">
+    <a href="/signup-page" class="btn-primary">Start for Free →</a>
+    <a href="/login-page" class="btn-ghost">Sign In</a>
+  </div>
+
+  <!-- Dashboard mockup -->
+  <div class="hero-mockup">
+    <div class="mockup-glow"></div>
+    <div class="mockup-frame">
+      <div class="mockup-bar">
+        <div class="dot d1"></div>
+        <div class="dot d2"></div>
+        <div class="dot d3"></div>
+        <div class="mockup-url">contextweave.app/dashboard</div>
+      </div>
+      <div class="mockup-body">
+        <div class="m-card">
+          <div class="m-label">Cognitive Score</div>
+          <div class="m-val" style="color:#3b9eff">74</div>
+          <div class="m-bar-wrap"><div class="m-bar" style="width:74%;background:linear-gradient(90deg,#3b9eff,#00e5c0)"></div></div>
+        </div>
+        <div class="m-card">
+          <div class="m-label">Trend</div>
+          <div class="m-val" style="color:#22d98a">↑</div>
+          <div style="font-family:var(--mono);font-size:10px;color:#3a5070;margin-top:6px">Improving</div>
+        </div>
+        <div class="m-card">
+          <div class="m-label">Streak</div>
+          <div class="m-val" style="color:#f5c842">🔥 5</div>
+          <div style="font-family:var(--mono);font-size:10px;color:#3a5070;margin-top:6px">Days active</div>
+        </div>
+        <div class="m-chart">
+          <div class="bar-item" style="height:45%;background:#3b9eff;animation-delay:0.1s"></div>
+          <div class="bar-item" style="height:60%;background:#3b9eff;animation-delay:0.15s"></div>
+          <div class="bar-item" style="height:40%;background:#3b9eff;animation-delay:0.2s"></div>
+          <div class="bar-item" style="height:75%;background:#3b9eff;animation-delay:0.25s"></div>
+          <div class="bar-item" style="height:55%;background:#3b9eff;animation-delay:0.3s"></div>
+          <div class="bar-item" style="height:80%;background:linear-gradient(to top,#3b9eff,#00e5c0);animation-delay:0.35s"></div>
+          <div class="bar-item" style="height:70%;background:#3b9eff;animation-delay:0.4s"></div>
+          <div class="bar-item" style="height:90%;background:linear-gradient(to top,#3b9eff,#00e5c0);animation-delay:0.45s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar reveal">
+  <div class="stats-inner">
+    <div class="stat-item">
+      <div class="stat-num">47+</div>
+      <div class="stat-desc">Behavioral Patterns</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">Real-time</div>
+      <div class="stat-desc">Cognitive Scoring</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3-Day</div>
+      <div class="stat-desc">Score Forecasting</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">100%</div>
+      <div class="stat-desc">Free to Start</div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="features">
+    <div class="features-header reveal">
+      <span class="section-tag">What you get</span>
+      <h2 class="section-title">Everything your brain needs to <em>perform</em></h2>
+      <p class="section-sub">A complete behavioral intelligence system built for daily use.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feat-card reveal" style="--accent-color:var(--blue)">
+        <div class="feat-icon" style="background:rgba(59,158,255,0.1)">🧠</div>
+        <div class="feat-name">Cognitive Scoring</div>
+        <div class="feat-desc">Every note you write is analyzed in real-time to produce a behavioral score from 0–100. Know exactly where your mind is at.</div>
+        <span class="feat-tag" style="background:rgba(59,158,255,0.08);color:var(--blue)">AI-Powered</span>
+      </div>
+
+      <div class="feat-card reveal" style="--accent-color:var(--teal)">
+        <div class="feat-icon" style="background:rgba(0,229,192,0.1)">📊</div>
+        <div class="feat-name">Pattern Detection</div>
+        <div class="feat-desc">Discovers hidden patterns in your behavior — procrastination cycles, stress triggers, peak performance windows, and more.</div>
+        <span class="feat-tag" style="background:rgba(0,229,192,0.08);color:var(--teal)">Deep Analysis</span>
+      </div>
+
+      <div class="feat-card reveal" style="--accent-color:var(--gold)">
+        <div class="feat-icon" style="background:rgba(245,200,66,0.1)">📅</div>
+        <div class="feat-name">3-Day Forecasting</div>
+        <div class="feat-desc">Linear regression on your behavioral history predicts your cognitive score 3 days ahead. Know tomorrow before it happens.</div>
+        <span class="feat-tag" style="background:rgba(245,200,66,0.08);color:var(--gold)">Predictive</span>
+      </div>
+
+      <div class="feat-card reveal" style="--accent-color:var(--green)">
+        <div class="feat-icon" style="background:rgba(34,217,138,0.1)">🔗</div>
+        <div class="feat-name">Behavioral DNA</div>
+        <div class="feat-desc">Your unique archetype, dominant patterns, and cognitive strengths compiled into a shareable profile. Show the world how your mind works.</div>
+        <span class="feat-tag" style="background:rgba(34,217,138,0.08);color:var(--green)">Shareable</span>
+      </div>
+
+      <div class="feat-card reveal" style="--accent-color:var(--red)">
+        <div class="feat-icon" style="background:rgba(255,68,102,0.1)">⚡</div>
+        <div class="feat-name">Anomaly Detection</div>
+        <div class="feat-desc">Automatic alerts when your behavioral signals deviate from your baseline — catch burnout, stall patterns, and stress spikes early.</div>
+        <span class="feat-tag" style="background:rgba(255,68,102,0.08);color:var(--red)">Early Warning</span>
+      </div>
+
+      <div class="feat-card reveal" style="--accent-color:#a78bfa">
+        <div class="feat-icon" style="background:rgba(167,139,250,0.1)">📄</div>
+        <div class="feat-name">PDF Export</div>
+        <div class="feat-desc">Download your full behavioral report as a beautiful PDF — archetype, insights, patterns, and recommendations. Built for your portfolio.</div>
+        <span class="feat-tag" style="background:rgba(167,139,250,0.08);color:#a78bfa">Export Ready</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background:rgba(255,255,255,0.01);border-top:1px solid var(--rim);border-bottom:1px solid var(--rim)">
+  <div class="hiw">
+    <div class="hiw-header reveal" style="text-align:center;margin:0 auto 64px;max-width:600px">
+      <span class="section-tag">Simple by design</span>
+      <h2 class="section-title" style="margin:0 auto">How it <em>works</em></h2>
+    </div>
+    <div class="hiw-steps">
+      <div class="step reveal">
+        <div class="step-num">01</div>
+        <div class="step-title">Write your notes</div>
+        <div class="step-desc">Log anything — what you worked on, how you felt, what distracted you. Plain text, every day.</div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">02</div>
+        <div class="step-title">AI analyzes behavior</div>
+        <div class="step-desc">ContextWeave scans for 47+ behavioral signals — focus, stress, procrastination, collaboration, momentum.</div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">03</div>
+        <div class="step-title">Get your intelligence</div>
+        <div class="step-desc">Receive your cognitive score, behavioral forecast, archetype, and personalized AI guidance — instantly.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BEHAVIORAL DNA -->
+<section id="dna">
+  <div class="dna-section">
+    <div class="dna-grid">
+      <div class="dna-cards reveal">
+        <div class="dna-card">
+          <div class="dna-emoji">🚀</div>
+          <div class="dna-info">
+            <div class="dna-name">The Momentum Builder</div>
+            <div class="dna-val">Archetype · High Executor</div>
+          </div>
+          <div class="dna-score">74</div>
+        </div>
+        <div class="dna-card">
+          <div class="dna-emoji">🔥</div>
+          <div class="dna-info">
+            <div class="dna-name">5-Day Streak</div>
+            <div class="dna-val">Consistent logging detected</div>
+          </div>
+          <div class="dna-score" style="color:var(--gold)">+8</div>
+        </div>
+        <div class="dna-card">
+          <div class="dna-emoji">📈</div>
+          <div class="dna-info">
+            <div class="dna-name">Improving Trend</div>
+            <div class="dna-val">Score up 12pts this week</div>
+          </div>
+          <div class="dna-score" style="color:var(--green)">↑</div>
+        </div>
+        <div class="archetype-box">
+          <div class="arch-label">Your Behavioral Archetype</div>
+          <div class="arch-name">🚀 The Momentum Builder</div>
+          <div class="arch-desc">You're in a growth phase — execution is strong, scores are rising. You convert intent into action faster than most.</div>
+        </div>
+      </div>
+      <div class="dna-text reveal">
+        <span class="section-tag">Behavioral DNA</span>
+        <h2 class="section-title">Your mind has a <em>fingerprint</em></h2>
+        <p class="section-sub">ContextWeave computes your unique behavioral archetype from your note history — a living profile of how your mind operates under pressure, at rest, and everything in between.</p>
+        <p class="section-sub" style="margin-top:16px">Share it publicly. Add it to your resume. Show recruiters and collaborators exactly how you think and perform.</p>
+        <div style="margin-top:32px">
+          <a href="/signup-page" class="btn-primary">Build your DNA →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section>
+  <div class="cta-section reveal">
+    <div class="cta-box">
+      <h2 class="cta-title">Start understanding yourself today.</h2>
+      <p class="cta-sub">Free forever. No credit card. Just write your first note and watch the intelligence unfold.</p>
+      <div class="cta-btns">
+        <a href="/signup-page" class="btn-primary">Create Free Account →</a>
+        <a href="/login-page" class="btn-ghost">Already have an account</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">🧠 <strong>ContextWeave</strong> — Behavioral Intelligence Platform</div>
+  <div class="footer-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/login-page">Login</a>
+    <a href="/signup-page">Sign Up</a>
+  </div>
+  <div class="footer-credit">Built by Abhishek Shrivastav · B.Tech CSE AI&ML · SDGI Global University</div>
+</footer>
+
+<script>
+// ── Noise canvas ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('noise');
+const ctx    = canvas.getContext('2d');
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+function drawNoise() {
+  resizeCanvas();
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const v = Math.random() * 255;
+    imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = v;
+    imageData.data[i+3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+drawNoise();
+setInterval(drawNoise, 80);
+window.addEventListener('resize', resizeCanvas);
+
+// ── Custom cursor ─────────────────────────────────────────────────────────────
+const cursor     = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px';
+  cursor.style.top  = my + 'px';
+});
+
+function animateRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  cursorRing.style.left = rx + 'px';
+  cursorRing.style.top  = ry + 'px';
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+
+document.querySelectorAll('a, button').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'translate(-50%,-50%) scale(2.5)';
+    cursor.style.background = 'var(--teal)';
+    cursorRing.style.opacity = '0';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'translate(-50%,-50%) scale(1)';
+    cursor.style.background = 'var(--blue)';
+    cursorRing.style.opacity = '1';
+  });
+});
+
+// ── Scroll reveal ─────────────────────────────────────────────────────────────
+const observer = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

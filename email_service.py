@@ -1,18 +1,13 @@
 """
 ContextWeave — email_service.py
-Resend API email sender. 5-minute OTP expiry.
-Uses HTTPS (port 443) — works on Railway.
+Uses official resend Python SDK.
 """
 import os
-import json
-import urllib.request
-import urllib.error
 import random
 import string
 from datetime import datetime, timedelta
 from typing import Dict, Tuple
 
-# ── In-memory OTP store ───────────────────────────────────────────────────────
 _otp_store: Dict[str, Tuple[str, datetime]] = {}
 OTP_EXPIRY_MIN = 5
 
@@ -22,9 +17,14 @@ def _generate_otp(length=6) -> str:
 
 
 def send_otp(to_email: str, purpose: str = "verify") -> bool:
-    """Send OTP via Resend API. Returns True if sent successfully."""
-    resend_key = os.getenv("RESEND_API_KEY", "")
-    if not resend_key:
+    try:
+        import resend
+    except ImportError:
+        print("[email_service] resend package not installed")
+        return False
+
+    resend.api_key = os.getenv("RESEND_API_KEY", "")
+    if not resend.api_key:
         print("[email_service] RESEND_API_KEY not set")
         return False
 
@@ -36,40 +36,23 @@ def send_otp(to_email: str, purpose: str = "verify") -> bool:
         "verify": "ContextWeave — Verify your email",
         "reset":  "ContextWeave — Password reset OTP",
     }
-    subject = subject_map.get(purpose, "ContextWeave OTP")
-
-    payload = json.dumps({
-        "from":    "ContextWeave <onboarding@resend.dev>",
-        "to":      [to_email],
-        "subject": subject,
-        "html":    _build_email_html(otp, purpose),
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data    = payload,
-        headers = {
-            "Authorization": f"Bearer {resend_key}",
-            "Content-Type":  "application/json",
-        },
-        method = "POST",
-    )
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as res:
-            print(f"[email_service] OTP sent to {to_email} — status {res.status}")
-            return True
-    except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        print(f"[email_service] Resend HTTP error {e.code}: {body}")
-        return False
+        params = {
+            "from":    "ContextWeave <onboarding@resend.dev>",
+            "to":      [to_email],
+            "subject": subject_map.get(purpose, "ContextWeave OTP"),
+            "html":    _build_email_html(otp, purpose),
+        }
+        resend.Emails.send(params)
+        print(f"[email_service] OTP sent to {to_email}")
+        return True
     except Exception as e:
-        print(f"[email_service] Failed: {e}")
+        print(f"[email_service] Resend error: {e}")
         return False
 
 
 def verify_otp(email: str, otp: str) -> bool:
-    """Returns True if OTP matches and hasn't expired. Clears on success."""
     entry = _otp_store.get(email)
     if not entry:
         return False
@@ -94,10 +77,8 @@ def _build_email_html(otp: str, purpose: str) -> str:
   .wrap {{ max-width:480px; margin:40px auto; background:#fff;
            border-radius:16px; overflow:hidden;
            box-shadow:0 4px 24px rgba(0,0,0,0.08); }}
-  .header {{ background:linear-gradient(135deg,#050a12,#0d1a2e);
-             padding:32px; text-align:center; }}
-  .brand {{ color:#3b9eff; font-size:20px; font-weight:700;
-            letter-spacing:1px; font-family:monospace; }}
+  .header {{ background:linear-gradient(135deg,#050a12,#0d1a2e); padding:32px; text-align:center; }}
+  .brand {{ color:#3b9eff; font-size:20px; font-weight:700; letter-spacing:1px; font-family:monospace; }}
   .body {{ padding:36px 32px; }}
   .greeting {{ font-size:16px; color:#1a1a2e; margin-bottom:12px; font-weight:600; }}
   .desc {{ font-size:14px; color:#5a6a80; margin-bottom:28px; line-height:1.6; }}
@@ -113,9 +94,7 @@ def _build_email_html(otp: str, purpose: str) -> str:
 </head>
 <body>
 <div class="wrap">
-  <div class="header">
-    <div class="brand">🧠 ContextWeave</div>
-  </div>
+  <div class="header"><div class="brand">🧠 ContextWeave</div></div>
   <div class="body">
     <div class="greeting">Your one-time password</div>
     <div class="desc">

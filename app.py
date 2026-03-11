@@ -100,11 +100,6 @@ class SimulateInput(BaseModel):
 # Public routes
 # ══════════════════════════════════════════════════════════════════════════════
 
-@app.get("/")
-def home():
-    return {"message": "ContextWeave v2.0 — Behavioral Intelligence Platform"}
-
-
 @app.post("/signup")
 def signup(data: SignupInput, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():

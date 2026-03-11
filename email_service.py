@@ -1,23 +1,20 @@
 """
 ContextWeave — email_service.py
-Gmail SMTP OTP sender. 5-minute expiry.
+Resend API email sender. 5-minute OTP expiry.
+Uses HTTPS (port 443) — works on Railway.
 """
-import smtplib
+import os
+import json
+import urllib.request
+import urllib.error
 import random
 import string
-import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import Dict, Tuple
 
-# ── In-memory OTP store: {email: (otp, expires_at)} ─────────────────────────
+# ── In-memory OTP store ───────────────────────────────────────────────────────
 _otp_store: Dict[str, Tuple[str, datetime]] = {}
-
-# ── Gmail config (set in Railway env vars) ───────────────────────────────────
 OTP_EXPIRY_MIN = 5
-# NOTE: GMAIL_USER and GMAIL_APP_PASS are read at call time (not import time)
-# so Railway env vars are always picked up correctly.
 
 
 def _generate_otp(length=6) -> str:
@@ -25,14 +22,11 @@ def _generate_otp(length=6) -> str:
 
 
 def send_otp(to_email: str, purpose: str = "verify") -> bool:
-    """
-    Generate OTP, store it, send email.
-    purpose: "verify" | "reset"
-    Returns True if sent, False if failed.
-    """
-    # Read env vars here (not at module level) so Railway injects them correctly
-    gmail_user     = os.getenv("GMAIL_USER", "")
-    gmail_app_pass = os.getenv("GMAIL_APP_PASS", "")
+    """Send OTP via Resend API. Returns True if sent successfully."""
+    resend_key = os.getenv("RESEND_API_KEY", "")
+    if not resend_key:
+        print("[email_service] RESEND_API_KEY not set")
+        return False
 
     otp     = _generate_otp()
     expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MIN)
@@ -44,29 +38,38 @@ def send_otp(to_email: str, purpose: str = "verify") -> bool:
     }
     subject = subject_map.get(purpose, "ContextWeave OTP")
 
-    body = _build_email_html(otp, purpose)
+    payload = json.dumps({
+        "from":    "ContextWeave <onboarding@resend.dev>",
+        "to":      [to_email],
+        "subject": subject,
+        "html":    _build_email_html(otp, purpose),
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data    = payload,
+        headers = {
+            "Authorization": f"Bearer {resend_key}",
+            "Content-Type":  "application/json",
+        },
+        method = "POST",
+    )
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"ContextWeave <{gmail_user}>"
-        msg["To"]      = to_email
-        msg.attach(MIMEText(body, "html"))
-
-        if not gmail_user or not gmail_app_pass:
-            print("[email_service] GMAIL_USER or GMAIL_APP_PASS not set in environment")
-            return False
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(gmail_user, gmail_app_pass)
-            server.sendmail(gmail_user, to_email, msg.as_string())
-        return True
+        with urllib.request.urlopen(req, timeout=10) as res:
+            print(f"[email_service] OTP sent to {to_email} — status {res.status}")
+            return True
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"[email_service] Resend HTTP error {e.code}: {body}")
+        return False
     except Exception as e:
-        print(f"[email_service] Failed to send OTP: {e}")
+        print(f"[email_service] Failed: {e}")
         return False
 
 
 def verify_otp(email: str, otp: str) -> bool:
-    """Returns True if OTP matches and hasn't expired. Clears it on success."""
+    """Returns True if OTP matches and hasn't expired. Clears on success."""
     entry = _otp_store.get(email)
     if not entry:
         return False
@@ -93,17 +96,15 @@ def _build_email_html(otp: str, purpose: str) -> str:
            box-shadow:0 4px 24px rgba(0,0,0,0.08); }}
   .header {{ background:linear-gradient(135deg,#050a12,#0d1a2e);
              padding:32px; text-align:center; }}
-  .logo {{ font-size:32px; margin-bottom:8px; }}
-  .brand {{ color:#3b9eff; font-size:18px; font-weight:700;
+  .brand {{ color:#3b9eff; font-size:20px; font-weight:700;
             letter-spacing:1px; font-family:monospace; }}
   .body {{ padding:36px 32px; }}
   .greeting {{ font-size:16px; color:#1a1a2e; margin-bottom:12px; font-weight:600; }}
   .desc {{ font-size:14px; color:#5a6a80; margin-bottom:28px; line-height:1.6; }}
   .otp-box {{ background:#f0f4ff; border:2px dashed #3b9eff;
-              border-radius:12px; padding:24px; text-align:center;
-              margin-bottom:28px; }}
-  .otp {{ font-size:40px; font-weight:700; color:#1a1a2e;
-          letter-spacing:10px; font-family:monospace; }}
+              border-radius:12px; padding:24px; text-align:center; margin-bottom:28px; }}
+  .otp {{ font-size:44px; font-weight:700; color:#1a1a2e;
+          letter-spacing:12px; font-family:monospace; }}
   .expiry {{ font-size:12px; color:#8a9ab0; margin-top:8px; }}
   .warning {{ font-size:12px; color:#8a9ab0; line-height:1.6; }}
   .footer {{ background:#f8fafc; padding:20px 32px; text-align:center;
@@ -113,8 +114,7 @@ def _build_email_html(otp: str, purpose: str) -> str:
 <body>
 <div class="wrap">
   <div class="header">
-    <div class="logo">🧠</div>
-    <div class="brand">ContextWeave</div>
+    <div class="brand">🧠 ContextWeave</div>
   </div>
   <div class="body">
     <div class="greeting">Your one-time password</div>

@@ -684,29 +684,23 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
 # ── Debug email (REMOVE AFTER TESTING) ───────────────────────────────────────
 @app.get("/debug-email")
 def debug_email(request: Request):
-    import smtplib
-    gmail_user     = os.getenv("GMAIL_USER", "NOT_SET")
-    gmail_app_pass = os.getenv("GMAIL_APP_PASS", "NOT_SET")
-    admin_pwd      = os.getenv("ADMIN_PASSWORD", "NOT_SET")
+    import urllib.request, urllib.error
+    resend_key = os.getenv("RESEND_API_KEY", "NOT_SET")
+    admin_pwd  = os.getenv("ADMIN_PASSWORD", "NOT_SET")
 
     result = {
-        "GMAIL_USER":     gmail_user,
-        "GMAIL_APP_PASS": "SET" if gmail_app_pass != "NOT_SET" else "NOT_SET",
-        "GMAIL_APP_PASS_LENGTH": len(gmail_app_pass),
+        "RESEND_API_KEY": "SET" if resend_key != "NOT_SET" else "NOT_SET",
+        "RESEND_KEY_LENGTH": len(resend_key),
         "ADMIN_PASSWORD": "SET" if admin_pwd != "NOT_SET" else "NOT_SET",
     }
 
-    # Try actual SMTP connection
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-            server.login(gmail_user, gmail_app_pass)
-            result["smtp_connection"] = "SUCCESS"
-    except smtplib.SMTPAuthenticationError as e:
-        result["smtp_connection"] = "FAILED - AUTH ERROR"
-        result["smtp_error"] = str(e)
-    except Exception as e:
-        result["smtp_connection"] = "FAILED - OTHER"
-        result["smtp_error"] = str(e)
+    # Try sending a real test OTP to verify Resend works
+    if resend_key != "NOT_SET":
+        from email_service import send_otp
+        ok = send_otp("test@resend.dev", purpose="verify")
+        result["resend_test"] = "SUCCESS" if ok else "FAILED - check Railway logs"
+    else:
+        result["resend_test"] = "SKIPPED - key not set"
 
     return result
 

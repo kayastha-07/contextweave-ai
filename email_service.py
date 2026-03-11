@@ -15,9 +15,9 @@ from typing import Dict, Tuple
 _otp_store: Dict[str, Tuple[str, datetime]] = {}
 
 # ── Gmail config (set in Railway env vars) ───────────────────────────────────
-GMAIL_USER     = os.getenv("GMAIL_USER", "")      # your Gmail address
-GMAIL_APP_PASS = os.getenv("GMAIL_APP_PASS", "")  # Gmail App Password (not your real password)
 OTP_EXPIRY_MIN = 5
+# NOTE: GMAIL_USER and GMAIL_APP_PASS are read at call time (not import time)
+# so Railway env vars are always picked up correctly.
 
 
 def _generate_otp(length=6) -> str:
@@ -30,6 +30,10 @@ def send_otp(to_email: str, purpose: str = "verify") -> bool:
     purpose: "verify" | "reset"
     Returns True if sent, False if failed.
     """
+    # Read env vars here (not at module level) so Railway injects them correctly
+    gmail_user     = os.getenv("GMAIL_USER", "")
+    gmail_app_pass = os.getenv("GMAIL_APP_PASS", "")
+
     otp     = _generate_otp()
     expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MIN)
     _otp_store[to_email] = (otp, expires)
@@ -45,13 +49,16 @@ def send_otp(to_email: str, purpose: str = "verify") -> bool:
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"]    = f"ContextWeave <{GMAIL_USER}>"
+        msg["From"]    = f"ContextWeave <{gmail_user}>"
         msg["To"]      = to_email
         msg.attach(MIMEText(body, "html"))
 
+        if not gmail_user or not gmail_app_pass:
+            print("[email_service] GMAIL_USER or GMAIL_APP_PASS not set in environment")
+            return False
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASS)
-            server.sendmail(GMAIL_USER, to_email, msg.as_string())
+            server.login(gmail_user, gmail_app_pass)
+            server.sendmail(gmail_user, to_email, msg.as_string())
         return True
     except Exception as e:
         print(f"[email_service] Failed to send OTP: {e}")

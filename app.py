@@ -500,8 +500,7 @@ from email_service import send_otp, verify_otp
 from forecasting_engine import forecast_scores
 from database import User, Note  # already imported above, fine
 
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "contextweave-admin-2026")
-ADMIN_TOKEN    = hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()
+# Admin password read at request time - not here at import time
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -603,8 +602,10 @@ def get_forecast(
 # ── Admin routes ──────────────────────────────────────────────────────────────
 
 def _check_admin(request: Request):
+    admin_pwd = os.getenv("ADMIN_PASSWORD", "contextweave-admin-2026")
+    admin_tok = hashlib.sha256(admin_pwd.encode()).hexdigest()
     token = request.headers.get("X-Admin-Token", "")
-    if token != ADMIN_TOKEN:
+    if token != admin_tok:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -613,9 +614,11 @@ def admin_page(request: Request):
 
 @app.post("/admin/login")
 def admin_login(data: AdminLogin):
-    if data.password != ADMIN_PASSWORD:
+    admin_pwd = os.getenv("ADMIN_PASSWORD", "contextweave-admin-2026")
+    admin_tok = hashlib.sha256(admin_pwd.encode()).hexdigest()
+    if data.password != admin_pwd:
         raise HTTPException(status_code=403, detail="Wrong password")
-    return {"token": ADMIN_TOKEN}
+    return {"token": admin_tok}
 
 @app.get("/admin/stats")
 def admin_stats(request: Request, db: Session = Depends(get_db)):
